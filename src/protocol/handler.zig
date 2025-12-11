@@ -3,6 +3,8 @@ const parser = @import("parser.zig");
 const writer = @import("writer.zig");
 const types = @import("types.zig");
 const errors = @import("errors.zig");
+const move_mod = @import("../game/move.zig");
+const Move = move_mod.Move;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -29,8 +31,6 @@ pub fn handleCommand(ctx: *Context, command: types.Command, line: []const u8) !b
     return true;
 }
 
-// Helpers
-
 fn getBoardSize(ctx: *Context) !usize {
     return ctx.board_size orelse error.BoardNotInitialized;
 }
@@ -49,23 +49,20 @@ fn parseAndValidateBoardSize(line: []const u8) !usize {
     return size;
 }
 
-fn parseAndValidateMove(line: []const u8, size: usize) !types.Move {
-    const move = parser.parseMove(line) catch {
+fn parseAndValidateMove(line: []const u8, size: usize) !types.Coordinates {
+    const coords = parser.parseMove(line) catch {
         return error.InvalidMoveFormat;
     };
-    if (move.x >= size or move.y >= size) {
+    if (coords.x >= size or coords.y >= size) {
         return error.MoveOutOfBounds;
     }
-    return move;
+    return coords;
 }
 
-fn getCenter(size: usize) usize {
-    return size / 2;
-}
-
-fn recordMove(ctx: *Context, move: types.Move) !void {
+fn recordMove(ctx: *Context, move: Move) !void {
     ctx.move_count += 1;
-    try writer.sendMove(move);
+    const coords = types.Coordinates{ .x = move.x, .y = move.y };
+    try writer.sendMove(coords);
 }
 
 fn handleStart(ctx: *Context, line: []const u8) !void {
@@ -85,8 +82,8 @@ fn handleBegin(ctx: *Context) !void {
         return;
     };
 
-    const center = getCenter(size);
-    const move = types.Move{ .x = center, .y = center };
+    const center = size / 2;
+    const move = Move.init(center, center);
     try recordMove(ctx, move);
 }
 
@@ -96,7 +93,7 @@ fn handleTurn(ctx: *Context, line: []const u8) !void {
         return;
     };
 
-    const opponent_move = parseAndValidateMove(line, size) catch |err| {
+    const opponent_coords = parseAndValidateMove(line, size) catch |err| {
         if (err == error.InvalidMoveFormat) {
             try errors.sendInvalidMoveFormat();
         } else {
@@ -106,10 +103,10 @@ fn handleTurn(ctx: *Context, line: []const u8) !void {
     };
 
     // Just go right until we have a brain
-    const our_move = types.Move{
-        .x = if (opponent_move.x + 1 < size) opponent_move.x + 1 else opponent_move.x,
-        .y = opponent_move.y,
-    };
+    const our_move = Move.init(
+        if (opponent_coords.x + 1 < size) opponent_coords.x + 1 else opponent_coords.x,
+        opponent_coords.y,
+    );
     try recordMove(ctx, our_move);
 }
 
@@ -119,9 +116,9 @@ fn handleBoard(ctx: *Context) !void {
         return;
     };
 
-    const center = getCenter(size);
-    const move = types.Move{ .x = center, .y = center };
-    try writer.sendMove(move);
+    const center = size / 2;
+    const coords = types.Coordinates{ .x = center, .y = center };
+    try writer.sendMove(coords);
 }
 
 fn handleInfo(line: []const u8) void {

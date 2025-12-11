@@ -43,7 +43,7 @@ pub fn parseBoardSize(line: []const u8) !usize {
     return size;
 }
 
-pub fn parseMove(line: []const u8) !types.Move {
+pub fn parseMove(line: []const u8) !types.Coordinates {
     const space_pos = std.mem.indexOf(u8, line, " ") orelse return error.InvalidFormat;
     const coordinates = line[space_pos + 1 ..];
 
@@ -55,7 +55,7 @@ pub fn parseMove(line: []const u8) !types.Move {
     const x = try std.fmt.parseInt(usize, x_str, 10);
     const y = try std.fmt.parseInt(usize, y_str, 10);
 
-    return types.Move{ .x = x, .y = y };
+    return types.Coordinates{ .x = x, .y = y };
 }
 
 //TESTS

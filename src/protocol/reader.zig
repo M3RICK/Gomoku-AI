@@ -10,10 +10,6 @@ fn readByte(stdin: std.fs.File) !?u8 {
     return byte[0];
 }
 
-fn isLineTerminator(byte: u8) bool {
-    return byte == '\n' or byte == '\r';
-}
-
 fn collectLineBytes(allocator: std.mem.Allocator, stdin: std.fs.File) !std.ArrayList(u8) {
     var line: std.ArrayList(u8) = .empty;
     errdefer line.deinit(allocator);

@@ -10,7 +10,7 @@ pub const Command = enum {
     unknown, // self explanatory
 };
 
-pub const Move = struct {
+pub const Coordinates = struct {
     x: usize,
     y: usize,
 };
@@ -20,15 +20,6 @@ pub const Player = enum(u8) {
     me = 1,
     enemy = 2,
 };
-
-// Tests
-
-test "Move creation" {
-    const move = Move{ .x = 10, .y = 10 };
-
-    try std.testing.expectEqual(move.x, 10);
-    try std.testing.expectEqual(move.y, 10);
-}
 
 test "Player values" {
     try std.testing.expectEqual(@intFromEnum(Player.empty), 0);

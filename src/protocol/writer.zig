@@ -13,11 +13,11 @@ pub fn sendError(message: []const u8) !void {
     _ = try stdout.write("\n");
 }
 
-pub fn sendMove(move: types.Move) !void {
+pub fn sendMove(coords: types.Coordinates) !void {
     const stdout = std.fs.File.stdout();
 
     var buffer: [64]u8 = undefined;
-    const formatted = try std.fmt.bufPrint(&buffer, "{d},{d}\n", .{ move.x, move.y });
+    const formatted = try std.fmt.bufPrint(&buffer, "{d},{d}\n", .{ coords.x, coords.y });
 
     _ = try stdout.write(formatted);
 }
@@ -31,9 +31,9 @@ pub fn sendDebug(message: []const u8) !void {
 
 // Tests
 
-test "move formatting concept" {
-    const move = types.Move{ .x = 10, .y = 11 };
+test "coordinates formatting concept" {
+    const coords = types.Coordinates{ .x = 10, .y = 11 };
 
-    try std.testing.expectEqual(@as(usize, 10), move.x);
-    try std.testing.expectEqual(@as(usize, 11), move.y);
+    try std.testing.expectEqual(@as(usize, 10), coords.x);
+    try std.testing.expectEqual(@as(usize, 11), coords.y);
 }
