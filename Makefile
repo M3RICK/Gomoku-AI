@@ -11,7 +11,8 @@ $(NAME):
 		mv zig-x86_64-linux-0.16.0-dev.1484+d0ba6642b $(ZIG_DIR); \
 	fi
 	@echo "Building $(NAME)..."
-	@$(ZIG) build
+	@$(ZIG) build -p .
+	@mv bin/G_AIA_500_TLS_5_1_gomoku_16 $(NAME)
 
 re: fclean all
 
@@ -19,6 +20,6 @@ clean:
 	rm -rf zig-cache/ .zig-cache/
 
 fclean: clean
-	rm -rf zig-out/ $(ZIG_DIR)
+	rm -rf zig-out/ bin/ $(ZIG_DIR) $(NAME)
 
 .PHONY: all re clean fclean
