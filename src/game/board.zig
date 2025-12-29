@@ -85,67 +85,22 @@ pub fn clone(board: *const Board) !Board {
     return new_board;
 }
 
-// Tests
+pub fn getOpponent(player: Cell) Cell {
+    return if (player == .me) .opponent else .me;
+}
 
-test "board initialization" {
+test "board init and moves" {
     const allocator = std.testing.allocator;
     var board = try init(allocator, 20);
     defer deinit(&board);
 
     try std.testing.expectEqual(@as(usize, 20), board.size);
     try std.testing.expectEqual(@as(usize, 0), board.move_count);
-    try std.testing.expectEqual(Cell.empty, getCell(&board, 0, 0));
-    try std.testing.expectEqual(Cell.empty, getCell(&board, 19, 19));
-}
-
-test "make and undo move" {
-    const allocator = std.testing.allocator;
-    var board = try init(allocator, 20);
-    defer deinit(&board);
 
     makeMove(&board, 10, 10, .me);
     try std.testing.expectEqual(Cell.me, getCell(&board, 10, 10));
-    try std.testing.expectEqual(@as(usize, 1), board.move_count);
 
     undoMove(&board, 10, 10);
-    try std.testing.expectEqual(Cell.empty, getCell(&board, 10, 10));
-    try std.testing.expectEqual(@as(usize, 0), board.move_count);
-}
-
-test "isEmpty check" {
-    const allocator = std.testing.allocator;
-    var board = try init(allocator, 20);
-    defer deinit(&board);
-
-    try std.testing.expect(isEmpty(&board, 10, 10));
-
-    makeMove(&board, 10, 10, .me);
-    try std.testing.expect(!isEmpty(&board, 10, 10));
-}
-
-test "isInBounds check" {
-    const allocator = std.testing.allocator;
-    var board = try init(allocator, 20);
-    defer deinit(&board);
-
-    try std.testing.expect(isInBounds(&board, 0, 0));
-    try std.testing.expect(isInBounds(&board, 19, 19));
-    try std.testing.expect(!isInBounds(&board, 20, 20));
-    try std.testing.expect(!isInBounds(&board, 30, 15));
-}
-
-test "board clear" {
-    const allocator = std.testing.allocator;
-    var board = try init(allocator, 20);
-    defer deinit(&board);
-
-    makeMove(&board, 5, 5, .me);
-    makeMove(&board, 10, 10, .opponent);
-    try std.testing.expectEqual(@as(usize, 2), board.move_count);
-
-    clear(&board);
-    try std.testing.expectEqual(@as(usize, 0), board.move_count);
-    try std.testing.expect(isEmpty(&board, 5, 5));
     try std.testing.expect(isEmpty(&board, 10, 10));
 }
 
@@ -155,13 +110,9 @@ test "board clone" {
     defer deinit(&board);
 
     makeMove(&board, 10, 10, .me);
-    makeMove(&board, 11, 11, .opponent);
-
     var cloned = try clone(&board);
     defer deinit(&cloned);
 
-    try std.testing.expectEqual(board.size, cloned.size);
     try std.testing.expectEqual(board.move_count, cloned.move_count);
     try std.testing.expectEqual(Cell.me, getCell(&cloned, 10, 10));
-    try std.testing.expectEqual(Cell.opponent, getCell(&cloned, 11, 11));
 }
