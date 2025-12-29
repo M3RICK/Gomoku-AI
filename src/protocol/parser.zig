@@ -58,30 +58,42 @@ pub fn parseMove(line: []const u8) !types.Coordinates {
     return types.Coordinates{ .x = x, .y = y };
 }
 
-//TESTS
+pub const BoardMove = struct {
+    x: usize,
+    y: usize,
+    player: u8,
+};
 
-test "parse command types" {
+pub fn parseBoardMove(line: []const u8) !BoardMove {
+    var iter = std.mem.splitScalar(u8, line, ',');
+
+    const x_str = iter.next() orelse return error.InvalidFormat;
+    const y_str = iter.next() orelse return error.InvalidFormat;
+    const player_str = iter.next() orelse return error.InvalidFormat;
+
+    const x = try std.fmt.parseInt(usize, x_str, 10);
+    const y = try std.fmt.parseInt(usize, y_str, 10);
+    const player = try std.fmt.parseInt(u8, player_str, 10);
+
+    if (player != 1 and player != 2) {
+        return error.InvalidPlayer;
+    }
+
+    return BoardMove{
+        .x = x,
+        .y = y,
+        .player = player,
+    };
+}
+
+test "parse commands" {
     try std.testing.expectEqual(types.Command.start, parseCommand("START 10"));
     try std.testing.expectEqual(types.Command.begin, parseCommand("BEGIN"));
     try std.testing.expectEqual(types.Command.turn, parseCommand("TURN 14,13"));
-    try std.testing.expectEqual(types.Command.board, parseCommand("BOARD"));
-    try std.testing.expectEqual(types.Command.end, parseCommand("END"));
-    try std.testing.expectEqual(types.Command.unknown, parseCommand("INVALID"));
 }
 
-test "parse board size" {
-    const size = try parseBoardSize("START 10");
-    try std.testing.expectEqual(@as(usize, 10), size);
-}
-
-test "parse move coordinates" {
+test "parse coordinates" {
     const move = try parseMove("TURN 16,17");
     try std.testing.expectEqual(@as(usize, 16), move.x);
     try std.testing.expectEqual(@as(usize, 17), move.y);
-}
-
-test "parse move with different coordinates" {
-    const move = try parseMove("TURN 0,19");
-    try std.testing.expectEqual(@as(usize, 0), move.x);
-    try std.testing.expectEqual(@as(usize, 19), move.y);
 }

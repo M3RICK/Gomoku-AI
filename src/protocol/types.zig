@@ -14,15 +14,3 @@ pub const Coordinates = struct {
     x: usize,
     y: usize,
 };
-
-pub const Player = enum(u8) {
-    empty = 0,
-    me = 1,
-    enemy = 2,
-};
-
-test "Player values" {
-    try std.testing.expectEqual(@intFromEnum(Player.empty), 0);
-    try std.testing.expectEqual(@intFromEnum(Player.me), 1);
-    try std.testing.expectEqual(@intFromEnum(Player.enemy), 2);
-}

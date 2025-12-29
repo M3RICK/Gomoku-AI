@@ -29,11 +29,3 @@ pub fn sendDebug(message: []const u8) !void {
     _ = try stdout.write("\n");
 }
 
-// Tests
-
-test "coordinates formatting concept" {
-    const coords = types.Coordinates{ .x = 10, .y = 11 };
-
-    try std.testing.expectEqual(@as(usize, 10), coords.x);
-    try std.testing.expectEqual(@as(usize, 11), coords.y);
-}

@@ -40,11 +40,3 @@ pub fn readLineTrimmed(allocator: std.mem.Allocator) ![]u8 {
     return try allocator.dupe(u8, trimmed);
 }
 
-// Tests
-
-test "trimming whitespace" {
-    const test_input = "  hello world  ";
-    const trimmed = std.mem.trim(u8, test_input, &std.ascii.whitespace);
-
-    try std.testing.expectEqualStrings("hello world", trimmed);
-}

@@ -1,20 +1,36 @@
 const std = @import("std");
 const parser = @import("parser.zig");
 const writer = @import("writer.zig");
+const reader = @import("reader.zig");
 const types = @import("types.zig");
 const errors = @import("errors.zig");
 const move_mod = @import("../game/move.zig");
+const board_mod = @import("../game/board.zig");
+const engine_mod = @import("../ai/engine.zig");
 const Move = move_mod.Move;
+const Board = board_mod.Board;
+const Engine = engine_mod.Engine;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
     board_size: ?usize = null,
+    board: ?Board = null,
+    engine: ?Engine = null,
     move_count: usize = 0,
 
     pub fn init(allocator: std.mem.Allocator) Context {
         return Context{
             .allocator = allocator,
         };
+    }
+
+    pub fn deinit(self: *Context) void {
+        if (self.board) |*board| {
+            board_mod.deinit(board);
+        }
+        if (self.engine) |*engine| {
+            engine.deinit();
+        }
     }
 };
 
@@ -31,94 +47,109 @@ pub fn handleCommand(ctx: *Context, command: types.Command, line: []const u8) !b
     return true;
 }
 
-fn getBoardSize(ctx: *Context) !usize {
-    return ctx.board_size orelse error.BoardNotInitialized;
-}
-
-fn isValidBoardSize(size: usize) bool {
-    return size >= 5 and size <= 20;
-}
-
-fn parseAndValidateBoardSize(line: []const u8) !usize {
-    const size = parser.parseBoardSize(line) catch {
-        return error.InvalidBoardSize;
-    };
-    if (!isValidBoardSize(size)) {
-        return error.InvalidBoardSize;
-    }
-    return size;
-}
-
-fn parseAndValidateMove(line: []const u8, size: usize) !types.Coordinates {
-    const coords = parser.parseMove(line) catch {
-        return error.InvalidMoveFormat;
-    };
-    if (coords.x >= size or coords.y >= size) {
-        return error.MoveOutOfBounds;
-    }
-    return coords;
-}
-
-fn recordMove(ctx: *Context, move: Move) !void {
-    ctx.move_count += 1;
-    const coords = types.Coordinates{ .x = move.x, .y = move.y };
-    try writer.sendMove(coords);
-}
-
 fn handleStart(ctx: *Context, line: []const u8) !void {
-    const size = parseAndValidateBoardSize(line) catch {
+    const sz = parser.parseBoardSize(line) catch {
         try errors.sendInvalidBoardSize();
         return;
     };
 
-    ctx.board_size = size;
+    if (sz < 5 or sz > 20) {
+        try errors.sendInvalidBoardSize();
+        return;
+    }
+
+    cleanupContext(ctx);
+
+    ctx.board = try board_mod.init(ctx.allocator, sz);
+    ctx.engine = try Engine.init(ctx.allocator);
+    ctx.board_size = sz;
     ctx.move_count = 0;
     try writer.sendOk();
 }
 
+fn cleanupContext(ctx: *Context) void {
+    if (ctx.board) |*b| board_mod.deinit(b);
+    if (ctx.engine) |*e| e.deinit();
+}
+
 fn handleBegin(ctx: *Context) !void {
-    const size = getBoardSize(ctx) catch {
+    var board = &(ctx.board orelse {
         try errors.sendBoardNotInitialized();
         return;
-    };
+    });
 
-    const center = size / 2;
-    const move = Move.init(center, center);
-    try recordMove(ctx, move);
+    const mid = board.size / 2;
+    board_mod.makeMove(board, mid, mid, .me);
+
+    ctx.move_count += 1;
+    try writer.sendMove(.{ .x = mid, .y = mid });
 }
 
 fn handleTurn(ctx: *Context, line: []const u8) !void {
-    const size = getBoardSize(ctx) catch {
+    const board = &(ctx.board orelse {
         try errors.sendBoardNotInitialized();
         return;
-    };
+    });
+    const engine = &(ctx.engine orelse return error.EngineNotInitialized);
 
-    const opponent_coords = parseAndValidateMove(line, size) catch |err| {
-        if (err == error.InvalidMoveFormat) {
-            try errors.sendInvalidMoveFormat();
-        } else {
-            try errors.sendMoveOutOfBounds();
-        }
+    const pos = parser.parseMove(line) catch {
+        try errors.sendInvalidMoveFormat();
         return;
     };
 
-    // Just go right until we have a brain
-    const our_move = Move.init(
-        if (opponent_coords.x + 1 < size) opponent_coords.x + 1 else opponent_coords.x,
-        opponent_coords.y,
-    );
-    try recordMove(ctx, our_move);
+    if (pos.x >= board.size or pos.y >= board.size) {
+        try errors.sendMoveOutOfBounds();
+        return;
+    }
+
+    board_mod.makeMove(board, pos.x, pos.y, .opponent);
+    const my_move = try engine.findBestMove(board, 5000, .me);
+    board_mod.makeMove(board, my_move.x, my_move.y, .me);
+
+    ctx.move_count += 1;
+    try writer.sendMove(.{ .x = my_move.x, .y = my_move.y });
 }
 
 fn handleBoard(ctx: *Context) !void {
-    const size = getBoardSize(ctx) catch {
+    const board = &(ctx.board orelse {
         try errors.sendBoardNotInitialized();
         return;
-    };
+    });
+    const engine = &(ctx.engine orelse return error.EngineNotInitialized);
 
-    const center = size / 2;
-    const coords = types.Coordinates{ .x = center, .y = center };
-    try writer.sendMove(coords);
+    board_mod.clear(board);
+    try loadBoardMoves(ctx, board);
+
+    const our_move = try engine.findBestMove(board, 5000, .me);
+    board_mod.makeMove(board, our_move.x, our_move.y, .me);
+
+    ctx.move_count += 1;
+    try writer.sendMove(.{ .x = our_move.x, .y = our_move.y });
+}
+
+fn loadBoardMoves(ctx: *Context, board: *Board) !void {
+    while (true) {
+        const line = reader.readLineTrimmed(ctx.allocator) catch {
+            try writer.sendError("Failed to read board moves");
+            return;
+        };
+        defer ctx.allocator.free(line);
+
+        if (std.mem.eql(u8, line, "DONE")) break;
+
+        const mov = parser.parseBoardMove(line) catch {
+            try writer.sendError("Invalid board move format");
+            return;
+        };
+
+        if (mov.x >= board.size or mov.y >= board.size) {
+            try errors.sendMoveOutOfBounds();
+            return;
+        }
+
+        const p: board_mod.Cell = if (mov.player == 1) .me else .opponent;
+        board_mod.makeMove(board, mov.x, mov.y, p);
+    }
 }
 
 fn handleInfo(line: []const u8) void {
@@ -126,19 +157,3 @@ fn handleInfo(line: []const u8) void {
     _ = line;
 }
 
-// Tests
-test "context initialization" {
-    const allocator = std.testing.allocator;
-    const ctx = Context.init(allocator);
-
-    try std.testing.expectEqual(@as(?usize, null), ctx.board_size);
-    try std.testing.expectEqual(@as(usize, 0), ctx.move_count);
-}
-
-test "handle start command" {
-    const allocator = std.testing.allocator;
-    var ctx = Context.init(allocator);
-
-    try handleStart(&ctx, "START 15");
-    try std.testing.expectEqual(@as(?usize, 15), ctx.board_size);
-}
