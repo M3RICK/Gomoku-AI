@@ -12,8 +12,7 @@ const FORK_MOVE: i32 = 8_500_000;
 const BLOCK_FORK: i32 = 8_400_000;
 const CENTER_BONUS: i32 = 95;
 
-pub fn orderMoves(board: *Board, moves: []Move, player: Cell) !void {
-    const allocator = std.heap.page_allocator;
+pub fn orderMoves(board: *Board, moves: []Move, player: Cell, allocator: std.mem.Allocator) !void {
     const scores = try allocator.alloc(i32, moves.len);
     defer allocator.free(scores);
 
@@ -25,8 +24,12 @@ pub fn orderMoves(board: *Board, moves: []Move, player: Cell) !void {
 }
 
 pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
-    if (threat.isWinningMove(board, move, player)) return WIN_MOVE;
-    if (threat.isBlockingWin(board, move, player)) return BLOCK_MOVE;
+    if (threat.isWinningMove(board, move, player)) {
+        return WIN_MOVE;
+    }
+    if (threat.isBlockingWin(board, move, player)) {
+        return BLOCK_MOVE;
+    }
 
     var total: i32 = 0;
     total += scoreForkMoves(board, move, player);
@@ -97,6 +100,6 @@ test "move ordering" {
         Move.init(7, 7),
     };
 
-    try orderMoves(&board, &moves, .me);
+    try orderMoves(&board, &moves, .me, allocator);
     try std.testing.expectEqual(@as(usize, 10), moves[0].x);
 }
