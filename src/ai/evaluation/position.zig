@@ -90,7 +90,18 @@ fn scoreSequence(len: usize, left: bool, right: bool) i32 {
 pub fn evaluateForBothPlayers(board: *const Board) i32 {
     const my_score = evaluatePosition(board, .me);
     const opponent_score = evaluatePosition(board, .opponent);
-    return my_score - opponent_score;
+
+    const defense_weight = calculateDefenseWeight(opponent_score);
+    const weighted_opponent = @divTrunc(opponent_score * defense_weight, 10);
+
+    return my_score - weighted_opponent;
+}
+
+fn calculateDefenseWeight(opponent_score: i32) i32 {
+    if (opponent_score > 50_000) return 15;
+    if (opponent_score > 10_000) return 12;
+    if (opponent_score > 2_000) return 11;
+    return 10;
 }
 
 test "position eval" {
