@@ -152,8 +152,8 @@ fn evaluateSingleMove(
     allocator: std.mem.Allocator,
     depth: i32,
 ) !i32 {
-    tryMove(board, move, player);
-    defer undoMove(board, move);
+    board_mod.makeMove(board, move.x, move.y, player);
+    defer board_mod.undoMove(board, move.x, move.y);
 
     const enemy_score = try getOpponentResponse(
         board,
@@ -168,14 +168,6 @@ fn evaluateSingleMove(
     );
 
     return -enemy_score;
-}
-
-fn tryMove(board: *Board, move: Move, player: Cell) void {
-    board_mod.makeMove(board, move.x, move.y, player);
-}
-
-fn undoMove(board: *Board, move: Move) void {
-    board_mod.undoMove(board, move.x, move.y);
 }
 
 fn getOpponentResponse(
