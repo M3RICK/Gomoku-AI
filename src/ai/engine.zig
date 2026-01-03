@@ -30,10 +30,6 @@ pub const Engine = struct {
         time_limit_ms: u32,
         player: Cell,
     ) !Move {
-        if (tryOpeningBook(board, player)) |opening_move| {
-            return opening_move;
-        }
-
         return try search.findBestMove(
             board,
             time_limit_ms,
@@ -43,22 +39,6 @@ pub const Engine = struct {
         );
     }
 };
-
-fn tryOpeningBook(board: *const Board, player: Cell) ?Move {
-    const mid = board.size / 2;
-
-    if (board.move_count == 0) return Move.init(mid, mid);
-
-    if (board.move_count == 1 and player == .me) {
-        const center_taken = board_mod.getCell(board, mid, mid) != .empty;
-        if (center_taken) {
-            return Move.init(mid + 1, mid);
-        }
-        return Move.init(mid, mid);
-    }
-
-    return null;
-}
 
 test "engine finds move" {
     const allocator = std.testing.allocator;
