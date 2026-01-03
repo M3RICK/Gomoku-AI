@@ -8,6 +8,7 @@ const evaluate = @import("../evaluation/position.zig");
 const move_ordering = @import("../optimization/move_ordering.zig");
 const transposition = @import("../optimization/transposition.zig");
 const quiescence = @import("quiescence.zig");
+const threat = @import("../evaluation/threat.zig");
 const Board = board_mod.Board;
 const Cell = board_mod.Cell;
 const Move = move_mod.Move;
@@ -16,6 +17,8 @@ const SCORE_MIN: i32 = -1_000_000;
 const SCORE_MAX: i32 = 1_000_000;
 const SCORE_WIN: i32 = 100_000;
 const DEPTH_LIMIT: i32 = 12;
+
+const SearchError = error{ OutOfMemory, TimeUp };
 
 pub const SearchContext = struct {
     deadline: i64,
@@ -81,29 +84,54 @@ fn searchAtDepth(board: *Board, depth: i32, ctx: SearchContext) !SearchResult {
     defer ctx.allocator.free(moves);
     defer gen.deinit();
 
-    if (moves.len == 0) return error.NoMovesAvailable;
+    if (moves.len == 0) {
+        return error.NoMovesAvailable;
+    }
 
-    try move_ordering.orderMoves(board, moves, ctx.player);
+    try move_ordering.orderMoves(board, moves, ctx.player, ctx.allocator);
 
+    if (checkForImmediateWin(board, moves, ctx.player)) |win_move| {
+        return SearchResult{ .move = win_move, .score = SCORE_WIN };
+    }
+
+    return try findBestMoveAtDepth(board, moves, depth, ctx);
+}
+
+fn checkForImmediateWin(board: *Board, moves: []Move, player: Cell) ?Move {
+    for (moves) |m| {
+        if (threat.isWinningMove(board, m, player)) {
+            return m;
+        }
+    }
+    return null;
+}
+
+fn findBestMoveAtDepth(board: *Board, moves: []Move, depth: i32, ctx: SearchContext) !SearchResult {
     var best = moves[0];
     var top_score = SCORE_MIN;
 
     for (moves) |m| {
-        if (timer.isTimeUp(ctx.deadline)) return error.TimeUp;
+        if (timer.isTimeUp(ctx.deadline)) {
+            return error.TimeUp;
+        }
 
-        board_mod.makeMove(board, m.x, m.y, ctx.player);
-        var next_ctx = ctx;
-        next_ctx.hash = transposition.updateHash(ctx.hash, m.x, m.y, ctx.player);
-        const eval = try minimax(board, depth - 1, SCORE_MIN, SCORE_MAX, false, next_ctx);
-        board_mod.undoMove(board, m.x, m.y);
-
-        if (eval > top_score) {
-            top_score = eval;
+        const score = try evaluateMove(board, m, depth, ctx);
+        if (score > top_score) {
+            top_score = score;
             best = m;
         }
     }
 
     return SearchResult{ .move = best, .score = top_score };
+}
+
+fn evaluateMove(board: *Board, move: Move, depth: i32, ctx: SearchContext) !i32 {
+    board_mod.makeMove(board, move.x, move.y, ctx.player);
+    defer board_mod.undoMove(board, move.x, move.y);
+
+    var next_ctx = ctx;
+    next_ctx.hash = transposition.updateHash(ctx.hash, move.x, move.y, ctx.player);
+    return try minimax(board, depth - 1, SCORE_MIN, SCORE_MAX, false, next_ctx);
 }
 
 fn minimax(
@@ -113,7 +141,7 @@ fn minimax(
     beta: i32,
     maximizing: bool,
     ctx: SearchContext,
-) error{ OutOfMemory, TimeUp }!i32 {
+) SearchError!i32 {
     if (timer.isTimeUp(ctx.deadline)) {
         return error.TimeUp;
     }
@@ -148,62 +176,129 @@ fn minimax(
 }
 
 fn minimaxMax(board: *Board, depth: i32, a: i32, b: i32, ctx: SearchContext) !i32 {
-    var alpha = a;
-    var best_val = SCORE_MIN;
-
-    var gen = movegen.MoveGenerator.init(ctx.allocator);
-    const moves = try gen.generateSmart(board, 2);
-    defer ctx.allocator.free(moves);
-    defer gen.deinit();
-
-    if (moves.len == 0) return 0;
-
-    try move_ordering.orderMoves(board, moves, ctx.player);
-
-    for (moves) |m| {
-        board_mod.makeMove(board, m.x, m.y, ctx.player);
-        var next_ctx = ctx;
-        next_ctx.hash = transposition.updateHash(ctx.hash, m.x, m.y, ctx.player);
-        const val = try minimax(board, depth - 1, alpha, b, false, next_ctx);
-        board_mod.undoMove(board, m.x, m.y);
-
-        best_val = @max(best_val, val);
-        alpha = @max(alpha, val);
-
-        if (b <= alpha) break;
-    }
-
-    return best_val;
+    const result = try searchMax(board, depth, a, b, ctx);
+    saveToCache(ctx, result.move, result.score, depth, a, b);
+    return result.score;
 }
 
 fn minimaxMin(board: *Board, depth: i32, a: i32, b: i32, ctx: SearchContext) !i32 {
-    var beta = b;
-    var best_val = SCORE_MAX;
     const opp = board_mod.getOpponent(ctx.player);
+    const result = try searchMin(board, depth, a, b, ctx, opp);
+    saveToCache(ctx, result.move, result.score, depth, a, b);
+    return result.score;
+}
 
+const SearchResult2 = struct {
+    move: Move,
+    score: i32,
+};
+
+fn searchMax(
+    board: *Board,
+    depth: i32,
+    a: i32,
+    b: i32,
+    ctx: SearchContext,
+) !SearchResult2 {
     var gen = movegen.MoveGenerator.init(ctx.allocator);
     const moves = try gen.generateSmart(board, 2);
     defer ctx.allocator.free(moves);
     defer gen.deinit();
 
-    if (moves.len == 0) return 0;
-
-    try move_ordering.orderMoves(board, moves, opp);
-
-    for (moves) |m| {
-        board_mod.makeMove(board, m.x, m.y, opp);
-        var next_ctx = ctx;
-        next_ctx.hash = transposition.updateHash(ctx.hash, m.x, m.y, opp);
-        const val = try minimax(board, depth - 1, a, beta, true, next_ctx);
-        board_mod.undoMove(board, m.x, m.y);
-
-        best_val = @min(best_val, val);
-        beta = @min(beta, val);
-
-        if (beta <= a) break;
+    if (moves.len == 0) {
+        return SearchResult2{ .move = Move.init(0, 0), .score = 0 };
     }
 
-    return best_val;
+    try move_ordering.orderMoves(board, moves, ctx.player, ctx.allocator);
+
+    var best_move = moves[0];
+    var best_score = SCORE_MIN;
+    var alpha = a;
+
+    for (moves) |m| {
+        const score = try tryMoveAndEvaluate(board, m, ctx.player, depth, alpha, b, false, ctx);
+
+        if (score > best_score) {
+            best_score = score;
+            best_move = m;
+        }
+
+        alpha = @max(alpha, score);
+        if (b <= alpha) {
+            break;
+        }
+    }
+
+    return SearchResult2{ .move = best_move, .score = best_score };
+}
+
+fn searchMin(
+    board: *Board,
+    depth: i32,
+    a: i32,
+    b: i32,
+    ctx: SearchContext,
+    player: Cell,
+) !SearchResult2 {
+    var gen = movegen.MoveGenerator.init(ctx.allocator);
+    const moves = try gen.generateSmart(board, 2);
+    defer ctx.allocator.free(moves);
+    defer gen.deinit();
+
+    if (moves.len == 0) {
+        return SearchResult2{ .move = Move.init(0, 0), .score = 0 };
+    }
+
+    try move_ordering.orderMoves(board, moves, player, ctx.allocator);
+
+    var best_move = moves[0];
+    var best_score = SCORE_MAX;
+    var beta = b;
+
+    for (moves) |m| {
+        const score = try tryMoveAndEvaluate(board, m, player, depth, a, beta, true, ctx);
+
+        if (score < best_score) {
+            best_score = score;
+            best_move = m;
+        }
+
+        beta = @min(beta, score);
+        if (beta <= a) {
+            break;
+        }
+    }
+
+    return SearchResult2{ .move = best_move, .score = best_score };
+}
+
+fn tryMoveAndEvaluate(
+    board: *Board,
+    move: Move,
+    player: Cell,
+    depth: i32,
+    alpha: i32,
+    beta: i32,
+    next_maximizing: bool,
+    ctx: SearchContext,
+) !i32 {
+    board_mod.makeMove(board, move.x, move.y, player);
+    defer board_mod.undoMove(board, move.x, move.y);
+
+    var next_ctx = ctx;
+    next_ctx.hash = transposition.updateHash(ctx.hash, move.x, move.y, player);
+    return try minimax(board, depth - 1, alpha, beta, next_maximizing, next_ctx);
+}
+
+fn saveToCache(ctx: SearchContext, best_move: Move, score: i32, depth: i32, original_alpha: i32, beta: i32) void {
+    const node_type = if (score <= original_alpha)
+        transposition.NodeType.upper_bound
+    else if (score >= beta)
+        transposition.NodeType.lower_bound
+    else
+        transposition.NodeType.exact;
+
+    ctx.tt.store(ctx.hash, best_move, score, depth, node_type);
 }
 
 fn getFallbackMove(board: *const Board, allocator: std.mem.Allocator) !Move {
