@@ -7,8 +7,8 @@ pub const Direction = struct {
     dy: i32,
 };
 
-pub const HORIZONTAL = Direction{ .dx = 1, .dy = 0 };
-pub const VERTICAL = Direction{ .dx = 0, .dy = 1 };
+pub const HORIZONTAL = Direction{ .dx = 0, .dy = 1 };
+pub const VERTICAL = Direction{ .dx = 1, .dy = 0 };
 pub const DIAGONAL = Direction{ .dx = 1, .dy = 1 };
 pub const ANTI_DIAGONAL = Direction{ .dx = 1, .dy = -1 };
 
