@@ -7,6 +7,7 @@ const timer = @import("timer.zig");
 const evaluate = @import("../evaluation/position.zig");
 const move_ordering = @import("../optimization/move_ordering.zig");
 const transposition = @import("../optimization/transposition.zig");
+const quiescence = @import("quiescence.zig");
 const Board = board_mod.Board;
 const Cell = board_mod.Cell;
 const Move = move_mod.Move;
@@ -14,7 +15,7 @@ const Move = move_mod.Move;
 const SCORE_MIN: i32 = -1_000_000;
 const SCORE_MAX: i32 = 1_000_000;
 const SCORE_WIN: i32 = 100_000;
-const DEPTH_LIMIT: i32 = 10;
+const DEPTH_LIMIT: i32 = 12;
 
 pub const SearchContext = struct {
     deadline: i64,
@@ -124,7 +125,15 @@ fn minimax(
     }
 
     if (depth == 0) {
-        return evaluate.evaluateForBothPlayers(board);
+        return quiescence.search(
+            board,
+            alpha,
+            beta,
+            ctx.player,
+            ctx.hash,
+            ctx.deadline,
+            ctx.allocator,
+        ) catch evaluate.evaluateForBothPlayers(board);
     }
 
     if (board.move_count > 0 and checkTerminalState(board)) {
