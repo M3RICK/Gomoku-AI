@@ -8,6 +8,8 @@ const Move = move_mod.Move;
 
 const WIN_MOVE: i32 = 9_800_000;
 const BLOCK_MOVE: i32 = 8_900_000;
+const FORK_MOVE: i32 = 8_500_000;
+const BLOCK_FORK: i32 = 8_400_000;
 const CENTER_BONUS: i32 = 95;
 
 pub fn orderMoves(board: *Board, moves: []Move, player: Cell) !void {
@@ -27,11 +29,27 @@ pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
     if (threat.isBlockingWin(board, move, player)) return BLOCK_MOVE;
 
     var total: i32 = 0;
+    total += scoreForkMoves(board, move, player);
     total += threat.scoreThreatCreation(board, move, player);
     total += threat.scoreThreatBlocking(board, move, player);
     total += centerProximity(board, move);
 
     return total;
+}
+
+fn scoreForkMoves(board: *Board, move: Move, player: Cell) i32 {
+    var score: i32 = 0;
+
+    if (threat.detectFork(board, move, player)) {
+        score += FORK_MOVE;
+    }
+
+    const opponent = board_mod.getOpponent(player);
+    if (threat.detectFork(board, move, opponent)) {
+        score += BLOCK_FORK;
+    }
+
+    return score;
 }
 
 fn centerProximity(board: *const Board, move: Move) i32 {
