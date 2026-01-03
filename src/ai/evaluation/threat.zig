@@ -67,6 +67,47 @@ fn scoreThreatPattern(info: pattern.LineInfo) i32 {
     return 0;
 }
 
+pub fn detectFork(board: *Board, move: Move, player: Cell) bool {
+    board_mod.makeMove(board, move.x, move.y, player);
+    const threats = countDangerousThreats(board, move.x, move.y);
+    board_mod.undoMove(board, move.x, move.y);
+    return threats >= 2;
+}
+
+fn countDangerousThreats(board: *const Board, x: usize, y: usize) usize {
+    var count: usize = 0;
+    const directions = [_]direction.Direction{
+        pattern.HORIZONTAL,
+        pattern.VERTICAL,
+        pattern.DIAGONAL,
+        pattern.ANTI_DIAGONAL,
+    };
+
+    for (directions) |dir| {
+        const player = board_mod.getCell(board, x, y);
+        const info = pattern.scanLine(board, x, y, dir, player);
+
+        if (isDangerousThreat(info)) {
+            count += 1;
+        }
+    }
+
+    return count;
+}
+
+fn isDangerousThreat(info: pattern.LineInfo) bool {
+    const is_open_four = info.count == 4 and (info.open_left or info.open_right);
+    const is_open_three = info.count == 3 and info.open_left and info.open_right;
+    return is_open_four or is_open_three;
+}
+
+pub fn scoreForkCreation(board: *Board, move: Move, player: Cell) i32 {
+    if (detectFork(board, move, player)) {
+        return 850_000;
+    }
+    return 0;
+}
+
 test "threat detection" {
     const allocator = std.testing.allocator;
     var board = try board_mod.init(allocator, 20);
