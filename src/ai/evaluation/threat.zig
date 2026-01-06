@@ -54,8 +54,12 @@ fn scoreThreatPattern(info: pattern.LineInfo) i32 {
     if (info.count == 4) {
         const both_open = info.open_left and info.open_right;
         const one_open = info.open_left or info.open_right;
-        if (both_open) return 950_000;
-        if (one_open) return 480_000;
+        if (both_open) {
+            return 950_000;
+        }
+        if (one_open) {
+            return 480_000;
+        }
     }
 
     if (info.count == 3) {
@@ -99,13 +103,6 @@ fn isDangerousThreat(info: pattern.LineInfo) bool {
     const is_open_four = info.count == 4 and (info.open_left or info.open_right);
     const is_open_three = info.count == 3 and info.open_left and info.open_right;
     return is_open_four or is_open_three;
-}
-
-pub fn scoreForkCreation(board: *Board, move: Move, player: Cell) i32 {
-    if (detectFork(board, move, player)) {
-        return 850_000;
-    }
-    return 0;
 }
 
 test "threat detection" {

@@ -74,7 +74,9 @@ fn evaluateLine(board: *const Board, start_x: usize, start_y: usize, dir: direct
 }
 
 fn checkSpaceOpen(board: *const Board, x: i32, y: i32) bool {
-    if (!direction.isValidPosition(board, x, y)) return false;
+    if (!direction.isValidPosition(board, x, y)) {
+        return false;
+    }
     return board_mod.getCell(board, @intCast(x), @intCast(y)) == .empty;
 }
 
@@ -98,9 +100,15 @@ pub fn evaluateForBothPlayers(board: *const Board) i32 {
 }
 
 fn calculateDefenseWeight(opponent_score: i32) i32 {
-    if (opponent_score > 50_000) return 15;
-    if (opponent_score > 10_000) return 12;
-    if (opponent_score > 2_000) return 11;
+    if (opponent_score > 50_000) {
+        return 15;
+    }
+    if (opponent_score > 10_000) {
+        return 12;
+    }
+    if (opponent_score > 2_000) {
+        return 11;
+    }
     return 10;
 }
 

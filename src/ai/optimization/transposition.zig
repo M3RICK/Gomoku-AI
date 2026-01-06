@@ -104,7 +104,9 @@ pub const TranspositionTable = struct {
     pub fn probe(self: *const TranspositionTable, h: u64) ?TTEntry {
         const idx = h % TABLE_SIZE;
         if (self.table[idx]) |entry| {
-            if (entry.hash == h) return entry;
+            if (entry.hash == h) {
+                return entry;
+            }
         }
         return null;
     }

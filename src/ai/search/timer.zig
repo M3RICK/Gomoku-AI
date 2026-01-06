@@ -31,7 +31,9 @@ pub fn isTimeUp(deadline: i64) bool {
 
 pub fn shouldContinueToNextDepth(deadline: i64, depth: i32) bool {
     const left = getRemainingTime(deadline);
-    if (left < MIN_RESERVE_MS) return false;
+    if (left < MIN_RESERVE_MS) {
+        return false;
+    }
 
     const estimate = estimateTimeForNextDepth(depth);
     return left > estimate + MIN_RESERVE_MS;
