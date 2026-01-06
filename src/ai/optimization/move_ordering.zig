@@ -6,82 +6,115 @@ const Board = board_mod.Board;
 const Cell = board_mod.Cell;
 const Move = move_mod.Move;
 
-const WIN_MOVE: i32 = 9_800_000;
-const BLOCK_MOVE: i32 = 8_900_000;
-const FORK_MOVE: i32 = 8_500_000;
-const BLOCK_FORK: i32 = 8_400_000;
-const CENTER_BONUS: i32 = 95;
+const WIN_MOVE_SCORE: i32 = 9_800_000;
+const BLOCK_WIN_SCORE: i32 = 8_900_000;
+const CREATE_FORK_SCORE: i32 = 8_500_000;
+const BLOCK_FORK_SCORE: i32 = 8_400_000;
+const CENTER_BONUS_PER_UNIT: i32 = 95;
 
 pub fn orderMoves(board: *Board, moves: []Move, player: Cell, allocator: std.mem.Allocator) !void {
-    const scores = try allocator.alloc(i32, moves.len);
-    defer allocator.free(scores);
+    const move_scores = try allocator.alloc(i32, moves.len);
+    defer allocator.free(move_scores);
 
-    for (moves, 0..) |m, i| {
-        scores[i] = scoreMove(board, m, player);
+    for (moves, 0..) |current_move, index| {
+        move_scores[index] = scoreMove(board, current_move, player);
     }
 
-    sortMovesByScore(moves, scores);
+    sortMovesByScore(moves, move_scores);
 }
 
 pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
     if (threat.isWinningMove(board, move, player)) {
-        return WIN_MOVE;
+        return WIN_MOVE_SCORE;
     }
+
     if (threat.isBlockingWin(board, move, player)) {
-        return BLOCK_MOVE;
+        return BLOCK_WIN_SCORE;
     }
 
-    var total: i32 = 0;
-    total += scoreForkMoves(board, move, player);
-    total += threat.scoreThreatCreation(board, move, player);
-    total += threat.scoreThreatBlocking(board, move, player);
-    total += centerProximity(board, move);
+    var total_score: i32 = 0;
 
-    return total;
+    total_score += scoreForkMoves(board, move, player);
+    total_score += threat.scoreThreatCreation(board, move, player);
+    total_score += threat.scoreThreatBlocking(board, move, player);
+    total_score += centerProximity(board, move);
+
+    return total_score;
 }
 
 fn scoreForkMoves(board: *Board, move: Move, player: Cell) i32 {
-    var score: i32 = 0;
+    var fork_score: i32 = 0;
 
-    if (threat.detectFork(board, move, player)) {
-        score += FORK_MOVE;
+    const creates_our_fork = threat.detectFork(board, move, player);
+    if (creates_our_fork) {
+        fork_score += CREATE_FORK_SCORE;
     }
 
     const opponent = board_mod.getOpponent(player);
-    if (threat.detectFork(board, move, opponent)) {
-        score += BLOCK_FORK;
+    const blocks_opponent_fork = threat.detectFork(board, move, opponent);
+    if (blocks_opponent_fork) {
+        fork_score += BLOCK_FORK_SCORE;
     }
 
-    return score;
+    return fork_score;
 }
 
 fn centerProximity(board: *const Board, move: Move) i32 {
-    const mid = board.size / 2;
-    const dx = if (move.x > mid) move.x - mid else mid - move.x;
-    const dy = if (move.y > mid) move.y - mid else mid - move.y;
-    const dist = dx + dy;
+    const center = board.size / 2;
 
-    const max_dist = board.size;
-    const closeness = max_dist - dist;
+    const horizontal_distance = calculateDistance(move.x, center);
+    const vertical_distance = calculateDistance(move.y, center);
 
-    return @divTrunc(@as(i32, @intCast(closeness)) * CENTER_BONUS, @as(i32, @intCast(max_dist)));
+    const total_distance = horizontal_distance + vertical_distance;
+    const max_distance = board.size;
+    const closeness = max_distance - total_distance;
+    const bonus = (closeness * CENTER_BONUS_PER_UNIT) / max_distance;
+
+    return @intCast(bonus);
 }
 
-fn sortMovesByScore(moves: []Move, scores: []i32) void {
-    var i: usize = 0;
-    while (i < moves.len) : (i += 1) {
-        var j: usize = i;
-        while (j > 0 and scores[j] > scores[j - 1]) : (j -= 1) {
-            swap(Move, moves, j, j - 1);
-            swap(i32, scores, j, j - 1);
-        }
+fn calculateDistance(position: usize, center: usize) usize {
+    if (position > center) {
+        return position - center;
+    } else {
+        return center - position;
     }
 }
 
-fn swap(comptime T: type, arr: []T, i: usize, j: usize) void {
-    const temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
+fn sortMovesByScore(moves: []Move, scores: []i32) void {
+    var i: usize = 1;
+    while (i < moves.len) : (i += 1) {
+        insertMoveInSortedPosition(moves, scores, i);
+    }
+}
+
+fn insertMoveInSortedPosition(moves: []Move, scores: []i32, position: usize) void {
+    var current_position = position;
+
+    while (current_position > 0) {
+        const previous_position = current_position - 1;
+        const should_swap = scores[current_position] > scores[previous_position];
+
+        if (!should_swap) {
+            break;
+        }
+
+        swapMoves(moves, current_position, previous_position);
+        swapScores(scores, current_position, previous_position);
+        current_position = previous_position;
+    }
+}
+
+fn swapMoves(moves: []Move, index1: usize, index2: usize) void {
+    const temp = moves[index1];
+    moves[index1] = moves[index2];
+    moves[index2] = temp;
+}
+
+fn swapScores(scores: []i32, index1: usize, index2: usize) void {
+    const temp = scores[index1];
+    scores[index1] = scores[index2];
+    scores[index2] = temp;
 }
 
 test "move ordering" {
