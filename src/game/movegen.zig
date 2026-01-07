@@ -48,7 +48,8 @@ pub const MoveGenerator = struct {
             return try self.generateCenterMove(board);
         }
 
-        try self.collectAllNeighbors(board, radius);
+        const adaptive_radius = calculateAdaptiveRadius(board, radius);
+        try self.collectAllNeighbors(board, adaptive_radius);
         return try self.moves.toOwnedSlice(self.allocator);
     }
 
@@ -95,6 +96,24 @@ pub const MoveGenerator = struct {
         try self.moves.append(self.allocator, Move.init(x, y));
     }
 };
+
+fn calculateAdaptiveRadius(board: *const Board, base_radius: usize) usize {
+    const move_count = board.move_count;
+
+    if (move_count <= 6) {
+        return 1;
+    }
+
+    if (move_count <= 20) {
+        return base_radius;
+    }
+
+    if (move_count <= 40) {
+        return base_radius + 1;
+    }
+
+    return base_radius + 1;
+}
 
 fn hashPosition(x: usize, y: usize) u64 {
     return (@as(u64, x) << 32) | @as(u64, y);
