@@ -119,7 +119,7 @@ fn hashPosition(x: usize, y: usize) u64 {
     return (@as(u64, x) << 32) | @as(u64, y);
 }
 
-test "smart move generation" {
+test "smarter move generation" {
     const allocator = std.testing.allocator;
     var board = try board_mod.init(allocator, 20);
     defer board_mod.deinit(&board);
