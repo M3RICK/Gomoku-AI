@@ -94,6 +94,11 @@ fn searchAtDepth(board: *Board, depth: i32, ctx: SearchContext) !SearchResult {
         return SearchResult{ .move = win_move, .score = SCORE_WIN };
     }
 
+    const opponent = board_mod.getOpponent(ctx.player);
+    if (checkForImmediateWin(board, moves, opponent)) |block_move| {
+        return SearchResult{ .move = block_move, .score = SCORE_WIN - 1 };
+    }
+
     return try findBestMoveAtDepth(board, moves, depth, ctx);
 }
 
