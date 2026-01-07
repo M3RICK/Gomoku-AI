@@ -103,7 +103,7 @@ fn handleTurn(ctx: *Context, line: []const u8) !void {
     }
 
     board_mod.makeMove(board, pos.x, pos.y, .opponent);
-    const my_move = try engine.findBestMove(board, 5000, .me);
+    const my_move = try engine.findBestMove(board, 4500, .me);
     board_mod.makeMove(board, my_move.x, my_move.y, .me);
 
     ctx.move_count += 1;
@@ -120,7 +120,7 @@ fn handleBoard(ctx: *Context) !void {
     board_mod.clear(board);
     try loadBoardMoves(ctx, board);
 
-    const our_move = try engine.findBestMove(board, 5000, .me);
+    const our_move = try engine.findBestMove(board, 4500, .me);
     board_mod.makeMove(board, our_move.x, our_move.y, .me);
 
     ctx.move_count += 1;
