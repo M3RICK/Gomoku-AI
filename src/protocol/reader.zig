@@ -11,7 +11,7 @@ fn readByte(stdin: std.fs.File) !?u8 {
 }
 
 fn collectLineBytes(allocator: std.mem.Allocator, stdin: std.fs.File) !std.ArrayList(u8) {
-    var line: std.ArrayList(u8) = .empty;
+    var line = std.ArrayList(u8){};
     errdefer line.deinit(allocator);
 
     while (true) {

@@ -216,7 +216,7 @@ fn filterTacticalMoves(
     player: Cell,
     allocator: std.mem.Allocator,
 ) ![]Move {
-    var tactical_moves: std.ArrayList(Move) = .empty;
+    var tactical_moves = std.ArrayList(Move){};
     errdefer tactical_moves.deinit(allocator);
 
     for (all_moves) |move| {
