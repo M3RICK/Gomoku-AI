@@ -121,14 +121,19 @@ pub const TranspositionTable = struct {
         node_type: NodeType,
     ) void {
         const table_index = calculateTableIndex(hash);
+        const existing_entry = self.entries[table_index];
 
-        self.entries[table_index] = TTEntry{
-            .hash = hash,
-            .best_move = best_move,
-            .score = score,
-            .depth = depth,
-            .node_type = node_type,
-        };
+        const should_replace = shouldReplaceEntry(existing_entry, hash, depth);
+
+        if (should_replace) {
+            self.entries[table_index] = TTEntry{
+                .hash = hash,
+                .best_move = best_move,
+                .score = score,
+                .depth = depth,
+                .node_type = node_type,
+            };
+        }
     }
 
     pub fn probe(self: *const TranspositionTable, hash: u64) ?TTEntry {
@@ -157,6 +162,24 @@ fn calculateTableIndex(hash: u64) usize {
 
 fn hashesMatch(stored_hash: u64, query_hash: u64) bool {
     return stored_hash == query_hash;
+}
+
+fn shouldReplaceEntry(existing: ?TTEntry, new_hash: u64, new_depth: i32) bool {
+    if (existing == null) {
+        return true;
+    }
+
+    const entry = existing.?;
+
+    if (entry.hash == new_hash) {
+        return true;
+    }
+
+    if (new_depth >= entry.depth) {
+        return true;
+    }
+
+    return false;
 }
 
 fn clearAllEntries(entries: []?TTEntry) void {
