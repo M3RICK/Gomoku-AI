@@ -20,7 +20,7 @@ pub const TTEntry = struct {
 };
 
 const BOARD_MAX_SIZE = 20;
-const TABLE_SIZE: usize = 1_500_000;
+const TABLE_SIZE: usize = 1_000_000;
 const ZOBRIST_SEED: u64 = 0xFEDCBA987654321;
 
 const PLAYER_ME_INDEX: usize = 0;
