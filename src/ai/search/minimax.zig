@@ -209,6 +209,13 @@ fn minimax(
         return if (maximizing) -SCORE_WIN else SCORE_WIN;
     }
 
+    if (shouldTryNullMove(depth, board.move_count, maximizing)) {
+        const null_cutoff = try tryNullMovePruning(board, depth, alpha, beta, ctx);
+        if (null_cutoff) |score| {
+            return score;
+        }
+    }
+
     if (maximizing) {
         return try minimaxMax(board, depth, alpha, beta, ctx);
     } else {
@@ -227,6 +234,32 @@ fn minimaxMin(board: *Board, depth: i32, a: i32, b: i32, ctx: SearchContext) !i3
     const result = try searchMin(board, depth, a, b, ctx, opp);
     saveToCache(ctx, result.move, result.score, depth, a, b);
     return result.score;
+}
+
+fn shouldTryNullMove(depth: i32, move_count: usize, maximizing: bool) bool {
+    if (maximizing) return false;
+    if (depth < 3) return false;
+    if (move_count <= 4) return false;
+    return true;
+}
+
+fn tryNullMovePruning(
+    board: *Board,
+    depth: i32,
+    alpha: i32,
+    beta: i32,
+    ctx: SearchContext,
+) !?i32 {
+    const reduction: i32 = 2;
+    const reduced_depth = depth - 1 - reduction;
+
+    const null_score = try minimax(board, reduced_depth, alpha, beta, true, ctx);
+
+    if (null_score >= beta) {
+        return beta;
+    }
+
+    return null;
 }
 
 const SearchResult2 = struct {
@@ -256,8 +289,14 @@ fn searchMax(
     var best_score = SCORE_MIN;
     var alpha = a;
 
-    for (moves) |m| {
-        const score = try tryMoveAndEvaluate(board, m, ctx.player, depth, alpha, b, false, ctx);
+    for (moves, 0..) |m, move_index| {
+        var search_depth = depth;
+
+        if (shouldReduceMove(move_index, depth)) {
+            search_depth = depth - 1;
+        }
+
+        const score = try tryMoveAndEvaluate(board, m, ctx.player, search_depth, alpha, b, false, ctx);
 
         if (score > best_score) {
             best_score = score;
@@ -296,8 +335,14 @@ fn searchMin(
     var best_score = SCORE_MAX;
     var beta = b;
 
-    for (moves) |m| {
-        const score = try tryMoveAndEvaluate(board, m, player, depth, a, beta, true, ctx);
+    for (moves, 0..) |m, move_index| {
+        var search_depth = depth;
+
+        if (shouldReduceMove(move_index, depth)) {
+            search_depth = depth - 1;
+        }
+
+        const score = try tryMoveAndEvaluate(board, m, player, search_depth, a, beta, true, ctx);
 
         if (score < best_score) {
             best_score = score;
@@ -351,6 +396,18 @@ fn getFallbackMove(board: *const Board, allocator: std.mem.Allocator) !Move {
     allocator.free(moves);
     gen.deinit();
     return move;
+}
+
+fn shouldReduceMove(move_index: usize, depth: i32) bool {
+    if (depth < 3) {
+        return false;
+    }
+
+    if (move_index < 4) {
+        return false;
+    }
+
+    return true;
 }
 
 fn checkTerminalState(board: *const Board) bool {
