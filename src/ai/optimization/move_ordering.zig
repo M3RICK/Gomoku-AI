@@ -39,6 +39,19 @@ pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
         return total_score;
     }
 
+    if (threat.createsSemiOpenFour(board, move, player)) {
+        total_score = CREATE_FORK_SCORE + 100_000;
+        total_score += centerProximity(board, move);
+        return total_score;
+    }
+
+    const opponent = board_mod.getOpponent(player);
+    if (threat.createsSemiOpenFour(board, move, opponent)) {
+        total_score = BLOCK_FORK_SCORE + 100_000;
+        total_score += centerProximity(board, move);
+        return total_score;
+    }
+
     total_score += scoreForkMoves(board, move, player);
     total_score += threat.scoreThreatCreation(board, move, player);
     total_score += threat.scoreThreatBlocking(board, move, player);
@@ -50,14 +63,16 @@ pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
 fn scoreForkMoves(board: *Board, move: Move, player: Cell) i32 {
     var fork_score: i32 = 0;
 
-    const creates_our_fork = threat.detectFork(board, move, player);
-    if (creates_our_fork) {
+    const our_threats = threat.countAllThreats(board, move, player);
+    if (our_threats >= 2) {
         fork_score += CREATE_FORK_SCORE;
+        const quality = threat.calculateThreatQuality(board, move, player);
+        fork_score += @divTrunc(quality, 10);
     }
 
     const opponent = board_mod.getOpponent(player);
-    const blocks_opponent_fork = threat.detectFork(board, move, opponent);
-    if (blocks_opponent_fork) {
+    const opp_threats = threat.countAllThreats(board, move, opponent);
+    if (opp_threats >= 2) {
         fork_score += BLOCK_FORK_SCORE;
     }
 
