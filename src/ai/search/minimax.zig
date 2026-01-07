@@ -16,6 +16,9 @@ const Move = move_mod.Move;
 const SCORE_MIN: i32 = -1_000_000;
 const SCORE_MAX: i32 = 1_000_000;
 const SCORE_WIN: i32 = 100_000;
+const SCORE_OPEN_FOUR: i32 = SCORE_WIN - 100;
+const SCORE_BLOCK_WIN: i32 = SCORE_WIN - 1;
+const SCORE_BLOCK_OPEN_FOUR: i32 = SCORE_WIN - 200;
 const DEPTH_LIMIT: i32 = 12;
 
 const SearchError = error{ OutOfMemory, TimeUp };
@@ -89,14 +92,38 @@ fn searchAtDepth(board: *Board, depth: i32, ctx: SearchContext) !SearchResult {
     }
 
     try move_ordering.orderMoves(board, moves, ctx.player, ctx.allocator);
+    const opponent = board_mod.getOpponent(ctx.player);
 
-    if (checkForImmediateWin(board, moves, ctx.player)) |win_move| {
-        return SearchResult{ .move = win_move, .score = SCORE_WIN };
+    const winning_move = checkForImmediateWin(board, moves, ctx.player);
+    if (winning_move) |move| {
+        var result: SearchResult = undefined;
+        result.move = move;
+        result.score = SCORE_WIN;
+        return result;
     }
 
-    const opponent = board_mod.getOpponent(ctx.player);
-    if (checkForImmediateWin(board, moves, opponent)) |block_move| {
-        return SearchResult{ .move = block_move, .score = SCORE_WIN - 1 };
+    const open_four_move = checkForOpenFour(board, moves, ctx.player);
+    if (open_four_move) |move| {
+        var result: SearchResult = undefined;
+        result.move = move;
+        result.score = SCORE_OPEN_FOUR;
+        return result;
+    }
+
+    const block_win_move = checkForImmediateWin(board, moves, opponent);
+    if (block_win_move) |move| {
+        var result: SearchResult = undefined;
+        result.move = move;
+        result.score = SCORE_BLOCK_WIN;
+        return result;
+    }
+
+    const block_open_four_move = checkForOpenFour(board, moves, opponent);
+    if (block_open_four_move) |move| {
+        var result: SearchResult = undefined;
+        result.move = move;
+        result.score = SCORE_BLOCK_OPEN_FOUR;
+        return result;
     }
 
     return try findBestMoveAtDepth(board, moves, depth, ctx);
@@ -105,6 +132,15 @@ fn searchAtDepth(board: *Board, depth: i32, ctx: SearchContext) !SearchResult {
 fn checkForImmediateWin(board: *Board, moves: []Move, player: Cell) ?Move {
     for (moves) |m| {
         if (threat.isWinningMove(board, m, player)) {
+            return m;
+        }
+    }
+    return null;
+}
+
+fn checkForOpenFour(board: *Board, moves: []Move, player: Cell) ?Move {
+    for (moves) |m| {
+        if (threat.createsOpenFour(board, m, player)) {
             return m;
         }
     }

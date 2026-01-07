@@ -20,6 +20,29 @@ pub fn isBlockingWin(board: *Board, move: Move, player: Cell) bool {
     return isWinningMove(board, move, opponent);
 }
 
+pub fn createsOpenFour(board: *Board, move: Move, player: Cell) bool {
+    board_mod.makeMove(board, move.x, move.y, player);
+    const has_open_four = hasOpenFour(board, move.x, move.y);
+    board_mod.undoMove(board, move.x, move.y);
+    return has_open_four;
+}
+
+fn hasOpenFour(board: *const Board, x: usize, y: usize) bool {
+    const directions = [_]direction.Direction{
+        pattern.HORIZONTAL,
+        pattern.VERTICAL,
+        pattern.DIAGONAL,
+        pattern.ANTI_DIAGONAL,
+    };
+    for (directions) |d| {
+        const info = pattern.scanLine(board, x, y, d, board_mod.getCell(board, x, y));
+        if (info.count == 4 and info.open_left and info.open_right) {
+            return true;
+        }
+    }
+    return false;
+}
+
 pub fn scoreThreatCreation(board: *Board, move: Move, player: Cell) i32 {
     board_mod.makeMove(board, move.x, move.y, player);
     const score = evaluateThreats(board, move.x, move.y);
