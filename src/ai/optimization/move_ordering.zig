@@ -24,15 +24,20 @@ pub fn orderMoves(board: *Board, moves: []Move, player: Cell, allocator: std.mem
 }
 
 pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
+    var total_score: i32 = 0;
+
     if (threat.isWinningMove(board, move, player)) {
-        return WIN_MOVE_SCORE;
+        total_score = WIN_MOVE_SCORE;
+        total_score += @divTrunc(centerProximity(board, move), 1000);
+        return total_score;
     }
 
     if (threat.isBlockingWin(board, move, player)) {
-        return BLOCK_WIN_SCORE;
+        total_score = BLOCK_WIN_SCORE;
+        total_score += @divTrunc(threat.scoreThreatCreation(board, move, player), 100);
+        total_score += centerProximity(board, move);
+        return total_score;
     }
-
-    var total_score: i32 = 0;
 
     total_score += scoreForkMoves(board, move, player);
     total_score += threat.scoreThreatCreation(board, move, player);
