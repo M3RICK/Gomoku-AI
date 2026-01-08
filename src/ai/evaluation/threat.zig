@@ -2,6 +2,7 @@ const std = @import("std");
 const board_mod = @import("../../game/board.zig");
 const move_mod = @import("../../game/move.zig");
 const pattern = @import("pattern.zig");
+const advanced = @import("advanced_patterns.zig");
 const direction = @import("../../game/direction.zig");
 const rules = @import("../../game/rules.zig");
 const Board = board_mod.Board;
@@ -25,6 +26,13 @@ pub fn createsOpenFour(board: *Board, move: Move, player: Cell) bool {
     const has_open_four = hasOpenFour(board, move.x, move.y);
     board_mod.undoMove(board, move.x, move.y);
     return has_open_four;
+}
+
+pub fn createsSemiOpenFour(board: *Board, move: Move, player: Cell) bool {
+    board_mod.makeMove(board, move.x, move.y, player);
+    const has_semi = advanced.createsSemiOpenFour(board, move.x, move.y, player);
+    board_mod.undoMove(board, move.x, move.y);
+    return has_semi;
 }
 
 fn hasOpenFour(board: *const Board, x: usize, y: usize) bool {
@@ -81,13 +89,16 @@ fn scoreThreatPattern(info: pattern.LineInfo) i32 {
             return 950_000;
         }
         if (one_open) {
-            return 480_000;
+            return 550_000;
         }
     }
 
     if (info.count == 3) {
         if (info.open_left and info.open_right) {
             return 95_000;
+        }
+        if (info.open_left or info.open_right) {
+            return 25_000;
         }
     }
 
@@ -126,6 +137,49 @@ fn isDangerousThreat(info: pattern.LineInfo) bool {
     const is_open_four = info.count == 4 and (info.open_left or info.open_right);
     const is_open_three = info.count == 3 and info.open_left and info.open_right;
     return is_open_four or is_open_three;
+}
+
+pub fn countAllThreats(board: *Board, move: Move, player: Cell) usize {
+    board_mod.makeMove(board, move.x, move.y, player);
+
+    const regular_threats = countDangerousThreats(board, move.x, move.y);
+    const broken_threes = advanced.countBrokenThrees(board, move.x, move.y, player);
+    const broken_fours = advanced.countBrokenFours(board, move.x, move.y, player);
+
+    board_mod.undoMove(board, move.x, move.y);
+    return regular_threats + broken_threes + (broken_fours * 2);
+}
+
+pub fn calculateThreatQuality(board: *Board, move: Move, player: Cell) i32 {
+    board_mod.makeMove(board, move.x, move.y, player);
+
+    const regular = countDangerousThreats(board, move.x, move.y);
+    const broken_threes = advanced.countBrokenThrees(board, move.x, move.y, player);
+    const broken_fours = advanced.countBrokenFours(board, move.x, move.y, player);
+    const has_semi_four = advanced.createsSemiOpenFour(board, move.x, move.y, player);
+
+    board_mod.undoMove(board, move.x, move.y);
+
+    var quality: i32 = 0;
+
+    if (has_semi_four) {
+        quality += 500_000;
+    }
+
+    const regular_score = convertToScore(regular, 80_000);
+    const broken_three_score = convertToScore(broken_threes, 40_000);
+    const broken_four_score = convertToScore(broken_fours, 70_000);
+
+    quality += regular_score;
+    quality += broken_three_score;
+    quality += broken_four_score;
+
+    return quality;
+}
+
+fn convertToScore(count: usize, multiplier: i32) i32 {
+    const safe_count: i32 = @intCast(count);
+    return safe_count * multiplier;
 }
 
 test "threat detection" {

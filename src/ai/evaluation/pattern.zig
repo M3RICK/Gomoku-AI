@@ -1,6 +1,7 @@
 const std = @import("std");
 const board_mod = @import("../../game/board.zig");
 const direction = @import("../../game/direction.zig");
+const advanced = @import("advanced_patterns.zig");
 const Board = board_mod.Board;
 const Cell = board_mod.Cell;
 
@@ -37,19 +38,29 @@ pub fn scanLine(
     };
 }
 
-const SCORES = [6][2]i32{
-    [_]i32{ 0, 0 },
-    [_]i32{ 0, 0 },
-    [_]i32{ 50, 500 },
-    [_]i32{ 2_000, 10_000 },
-    [_]i32{ 20_000, 100_000 },
-    [_]i32{ 500_000, 500_000 },
+const SCORES = [6][3]i32{
+    [_]i32{ 0, 0, 0 },
+    [_]i32{ 0, 0, 0 },
+    [_]i32{ 50, 200, 500 },
+    [_]i32{ 1_000, 5_000, 15_000 },
+    [_]i32{ 10_000, 60_000, 100_000 },
+    [_]i32{ 500_000, 500_000, 500_000 },
 };
 
 pub fn scorePattern(info: LineInfo) i32 {
     const count = @min(info.count, 5);
-    const both_open: usize = if (info.open_left and info.open_right) 1 else 0;
-    return SCORES[count][both_open];
+    const openness_type = determineOpennessType(info.open_left, info.open_right);
+    return SCORES[count][openness_type];
+}
+
+fn determineOpennessType(left_open: bool, right_open: bool) usize {
+    if (left_open and right_open) {
+        return 2;
+    }
+    if (left_open or right_open) {
+        return 1;
+    }
+    return 0;
 }
 
 test "scanLine" {
@@ -68,8 +79,11 @@ test "scanLine" {
 
 test "pattern scoring" {
     const five = LineInfo{ .count = 5, .open_left = false, .open_right = false };
-    try std.testing.expectEqual(@as(i32, 100_000), scorePattern(five));
+    try std.testing.expectEqual(@as(i32, 500_000), scorePattern(five));
 
     const open_four = LineInfo{ .count = 4, .open_left = true, .open_right = true };
-    try std.testing.expectEqual(@as(i32, 50_000), scorePattern(open_four));
+    try std.testing.expectEqual(@as(i32, 100_000), scorePattern(open_four));
+
+    const semi_four = LineInfo{ .count = 4, .open_left = true, .open_right = false };
+    try std.testing.expectEqual(@as(i32, 60_000), scorePattern(semi_four));
 }
