@@ -23,11 +23,11 @@ pub fn evaluatePosition(board: *const Board, player: Cell) i32 {
         score += evaluateLine(board, 0, y, pattern.DIAGONAL, player);
     }
 
-    for (0..board.size) |x| {
-        score += evaluateLine(board, x, 0, pattern.ANTI_DIAGONAL, player);
+    for (0..board.size) |y| {
+        score += evaluateLine(board, 0, y, pattern.ANTI_DIAGONAL, player);
     }
-    for (1..board.size) |y| {
-        score += evaluateLine(board, board.size - 1, y, pattern.ANTI_DIAGONAL, player);
+    for (1..board.size) |x| {
+        score += evaluateLine(board, x, board.size - 1, pattern.ANTI_DIAGONAL, player);
     }
 
     return score;
