@@ -17,6 +17,9 @@ pub const Context = struct {
     board: ?Board = null,
     engine: ?Engine = null,
     move_count: usize = 0,
+    timeout_turn: u32 = 5000,
+    timeout_match: u32 = 0,
+    time_left: u32 = 0,
 
     pub fn init(allocator: std.mem.Allocator) Context {
         return Context{
@@ -34,13 +37,27 @@ pub const Context = struct {
     }
 };
 
+fn calculateSafeTimeout(timeout_turn: u32) u32 {
+    if (timeout_turn == 0) {
+        return 100;
+    }
+
+    const safety_buffer_ms: u32 = 500;
+
+    if (timeout_turn <= safety_buffer_ms) {
+        return timeout_turn / 2;
+    }
+
+    return timeout_turn - safety_buffer_ms;
+}
+
 pub fn handleCommand(ctx: *Context, command: types.Command, line: []const u8) !bool {
     switch (command) {
         .start => try handleStart(ctx, line),
         .begin => try handleBegin(ctx),
         .turn => try handleTurn(ctx, line),
         .board => try handleBoard(ctx),
-        .info => handleInfo(line),
+        .info => handleInfo(ctx, line),
         .about => try writer.sendAbout(),
         .end => return false,
         .unknown => try writer.sendError("Unknown command"),
@@ -104,7 +121,9 @@ fn handleTurn(ctx: *Context, line: []const u8) !void {
     }
 
     board_mod.makeMove(board, pos.x, pos.y, .opponent);
-    const my_move = try engine.findBestMove(board, 1000, .me);
+
+    const safe_timeout = calculateSafeTimeout(ctx.timeout_turn);
+    const my_move = try engine.findBestMove(board, safe_timeout, .me);
     board_mod.makeMove(board, my_move.x, my_move.y, .me);
 
     ctx.move_count += 1;
@@ -121,7 +140,8 @@ fn handleBoard(ctx: *Context) !void {
     board_mod.clear(board);
     try loadBoardMoves(ctx, board);
 
-    const our_move = try engine.findBestMove(board, 1000, .me);
+    const safe_timeout = calculateSafeTimeout(ctx.timeout_turn);
+    const our_move = try engine.findBestMove(board, safe_timeout, .me);
     board_mod.makeMove(board, our_move.x, our_move.y, .me);
 
     ctx.move_count += 1;
@@ -153,8 +173,23 @@ fn loadBoardMoves(ctx: *Context, board: *Board) !void {
     }
 }
 
-fn handleInfo(line: []const u8) void {
-    // todo
-    _ = line;
+fn handleInfo(ctx: *Context, line: []const u8) void {
+    const info_command = parser.parseInfo(line) catch return;
+
+    switch (info_command.key) {
+        .timeout_turn => {
+            const timeout_value = std.fmt.parseInt(u32, info_command.value, 10) catch return;
+            ctx.timeout_turn = timeout_value;
+        },
+        .timeout_match => {
+            const match_timeout = std.fmt.parseInt(u32, info_command.value, 10) catch return;
+            ctx.timeout_match = match_timeout;
+        },
+        .time_left => {
+            const remaining_time = std.fmt.parseInt(u32, info_command.value, 10) catch return;
+            ctx.time_left = remaining_time;
+        },
+        else => {},
+    }
 }
 

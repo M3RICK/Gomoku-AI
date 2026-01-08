@@ -90,6 +90,55 @@ pub fn parseBoardMove(line: []const u8) !BoardMove {
     };
 }
 
+pub const InfoKey = enum {
+    timeout_turn,
+    timeout_match,
+    time_left,
+    max_memory,
+    game_type,
+    rule,
+    folder,
+    evaluate,
+    unknown,
+};
+
+pub const InfoCommand = struct {
+    key: InfoKey,
+    value: []const u8,
+};
+
+pub fn parseInfo(line: []const u8) !InfoCommand {
+    var iter = std.mem.splitScalar(u8, line, ' ');
+    _ = iter.next(); // Skip "INFO"
+
+    const key_str = iter.next() orelse return error.InvalidFormat;
+    const value_str = iter.next() orelse return error.InvalidFormat;
+
+    const key: InfoKey = if (std.mem.eql(u8, key_str, "timeout_turn"))
+        .timeout_turn
+    else if (std.mem.eql(u8, key_str, "timeout_match"))
+        .timeout_match
+    else if (std.mem.eql(u8, key_str, "time_left"))
+        .time_left
+    else if (std.mem.eql(u8, key_str, "max_memory"))
+        .max_memory
+    else if (std.mem.eql(u8, key_str, "game_type"))
+        .game_type
+    else if (std.mem.eql(u8, key_str, "rule"))
+        .rule
+    else if (std.mem.eql(u8, key_str, "folder"))
+        .folder
+    else if (std.mem.eql(u8, key_str, "evaluate"))
+        .evaluate
+    else
+        .unknown;
+
+    return InfoCommand{
+        .key = key,
+        .value = value_str,
+    };
+}
+
 test "parse commands" {
     try std.testing.expectEqual(types.Command.start, parseCommand("START 10"));
     try std.testing.expectEqual(types.Command.begin, parseCommand("BEGIN"));
