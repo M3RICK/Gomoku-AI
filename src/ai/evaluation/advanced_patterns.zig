@@ -177,6 +177,15 @@ fn hasBrokenThreeInDirection(
     if (hasPatternX_XX(board, x, y, dir, player)) {
         return true;
     }
+
+    const rev_dir = direction.Direction{ .dx = -dir.dx, .dy = -dir.dy };
+    if (hasPatternXX_X(board, x, y, rev_dir, player)) {
+        return true;
+    }
+    if (hasPatternX_XX(board, x, y, rev_dir, player)) {
+        return true;
+    }
+
     return false;
 }
 
@@ -196,6 +205,18 @@ fn hasBrokenFourInDirection(
     if (hasPatternX_XXX(board, x, y, dir, player)) {
         return true;
     }
+
+    const rev_dir = direction.Direction{ .dx = -dir.dx, .dy = -dir.dy };
+    if (hasPatternXXX_X(board, x, y, rev_dir, player)) {
+        return true;
+    }
+    if (hasPatternXX_XX(board, x, y, rev_dir, player)) {
+        return true;
+    }
+    if (hasPatternX_XXX(board, x, y, rev_dir, player)) {
+        return true;
+    }
+
     return false;
 }
 
