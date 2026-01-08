@@ -8,12 +8,12 @@ const Cell = board_mod.Cell;
 pub fn evaluatePosition(board: *const Board, player: Cell) i32 {
     var score: i32 = 0;
 
-    for (0..board.size) |y| {
-        score += evaluateLine(board, 0, y, pattern.HORIZONTAL, player);
+    for (0..board.size) |x| {
+        score += evaluateLine(board, x, 0, pattern.HORIZONTAL, player);
     }
 
-    for (0..board.size) |x| {
-        score += evaluateLine(board, x, 0, pattern.VERTICAL, player);
+    for (0..board.size) |y| {
+        score += evaluateLine(board, 0, y, pattern.VERTICAL, player);
     }
 
     for (0..board.size) |x| {

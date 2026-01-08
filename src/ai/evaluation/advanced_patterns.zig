@@ -125,6 +125,19 @@ pub fn countBrokenFours(board: *const Board, x: usize, y: usize, player: Cell) u
     return total;
 }
 
+pub fn countBrokenFives(board: *const Board, x: usize, y: usize, player: Cell) usize {
+    var total: usize = 0;
+    const dirs = getAllDirections();
+
+    for (dirs) |dir| {
+        if (hasBrokenFiveInDirection(board, x, y, dir, player)) {
+            total += 1;
+        }
+    }
+
+    return total;
+}
+
 pub fn createsBrokenFour(board: *const Board, x: usize, y: usize, player: Cell) bool {
     const dirs = getAllDirections();
 
@@ -214,6 +227,25 @@ fn hasBrokenFourInDirection(
         return true;
     }
     if (hasPatternX_XXX(board, x, y, rev_dir, player)) {
+        return true;
+    }
+
+    return false;
+}
+
+fn hasBrokenFiveInDirection(
+    board: *const Board,
+    x: usize,
+    y: usize,
+    dir: direction.Direction,
+    player: Cell,
+) bool {
+    if (hasPatternX_XXX_X(board, x, y, dir, player)) {
+        return true;
+    }
+
+    const rev_dir = direction.Direction{ .dx = -dir.dx, .dy = -dir.dy };
+    if (hasPatternX_XXX_X(board, x, y, rev_dir, player)) {
         return true;
     }
 
@@ -446,12 +478,74 @@ fn hasPatternX_XXX(
     return true;
 }
 
+fn hasPatternX_XXX_X(
+    board: *const Board,
+    x: usize,
+    y: usize,
+    dir: direction.Direction,
+    player: Cell,
+) bool {
+    const p0 = Position.init(x, y);
+    const p1 = p0.step(dir);
+    const p2 = p1.step(dir);
+    const p3 = p2.step(dir);
+    const p4 = p3.step(dir);
+    const p5 = p4.step(dir);
+    const p6 = p5.step(dir);
+
+    if (!p0.isValid(board)) {
+        return false;
+    }
+    if (!p1.isValid(board)) {
+        return false;
+    }
+    if (!p2.isValid(board)) {
+        return false;
+    }
+    if (!p3.isValid(board)) {
+        return false;
+    }
+    if (!p4.isValid(board)) {
+        return false;
+    }
+    if (!p5.isValid(board)) {
+        return false;
+    }
+    if (!p6.isValid(board)) {
+        return false;
+    }
+
+    if (!cellMatches(board, p0, player)) {
+        return false;
+    }
+    if (!isEmpty(board, p1)) {
+        return false;
+    }
+    if (!cellMatches(board, p2, player)) {
+        return false;
+    }
+    if (!cellMatches(board, p3, player)) {
+        return false;
+    }
+    if (!cellMatches(board, p4, player)) {
+        return false;
+    }
+    if (!isEmpty(board, p5)) {
+        return false;
+    }
+    if (!cellMatches(board, p6, player)) {
+        return false;
+    }
+
+    return true;
+}
+
 fn getScoreTable() [6][3]i32 {
     return [6][3]i32{
         [_]i32{ 0, 0, 0 },
         [_]i32{ 0, 0, 0 },
         [_]i32{ 50, 200, 500 },
-        [_]i32{ 1_000, 5_000, 15_000 },
+        [_]i32{ 1_000, 5_000, 50_000 },
         [_]i32{ 10_000, 60_000, 100_000 },
         [_]i32{ 500_000, 500_000, 500_000 },
     };

@@ -145,9 +145,10 @@ pub fn countAllThreats(board: *Board, move: Move, player: Cell) usize {
     const regular_threats = countDangerousThreats(board, move.x, move.y);
     const broken_threes = advanced.countBrokenThrees(board, move.x, move.y, player);
     const broken_fours = advanced.countBrokenFours(board, move.x, move.y, player);
+    const broken_fives = advanced.countBrokenFives(board, move.x, move.y, player);
 
     board_mod.undoMove(board, move.x, move.y);
-    return regular_threats + broken_threes + (broken_fours * 2);
+    return regular_threats + broken_threes + (broken_fours * 2) + (broken_fives * 3);
 }
 
 pub fn calculateThreatQuality(board: *Board, move: Move, player: Cell) i32 {
@@ -156,6 +157,7 @@ pub fn calculateThreatQuality(board: *Board, move: Move, player: Cell) i32 {
     const regular = countDangerousThreats(board, move.x, move.y);
     const broken_threes = advanced.countBrokenThrees(board, move.x, move.y, player);
     const broken_fours = advanced.countBrokenFours(board, move.x, move.y, player);
+    const broken_fives = advanced.countBrokenFives(board, move.x, move.y, player);
     const has_semi_four = advanced.createsSemiOpenFour(board, move.x, move.y, player);
 
     board_mod.undoMove(board, move.x, move.y);
@@ -169,10 +171,12 @@ pub fn calculateThreatQuality(board: *Board, move: Move, player: Cell) i32 {
     const regular_score = convertToScore(regular, 80_000);
     const broken_three_score = convertToScore(broken_threes, 40_000);
     const broken_four_score = convertToScore(broken_fours, 70_000);
+    const broken_five_score = convertToScore(broken_fives, 90_000);
 
     quality += regular_score;
     quality += broken_three_score;
     quality += broken_four_score;
+    quality += broken_five_score;
 
     return quality;
 }
