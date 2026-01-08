@@ -29,3 +29,8 @@ pub fn sendDebug(message: []const u8) !void {
     _ = try stdout.write("\n");
 }
 
+pub fn sendAbout() !void {
+    const stdout = std.fs.File.stdout();
+    _ = try stdout.write("name=\"Mahoraga\", version=\"DomainExpansion.1.0\", author=\"Megumi Fushiguro\", country=\"Shibuya\"\n");
+}
+

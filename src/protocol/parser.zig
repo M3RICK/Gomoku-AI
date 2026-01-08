@@ -23,6 +23,10 @@ pub fn parseCommand(line: []const u8) types.Command {
             if (std.mem.startsWith(u8, line, "INFO"))
                 return .info;
         },
+        'A' => {
+            if (std.mem.startsWith(u8, line, "ABOUT"))
+                return .about;
+        },
         'E' => {
             if (std.mem.startsWith(u8, line, "END"))
                 return .end;

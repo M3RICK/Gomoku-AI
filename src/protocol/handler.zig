@@ -41,6 +41,7 @@ pub fn handleCommand(ctx: *Context, command: types.Command, line: []const u8) !b
         .turn => try handleTurn(ctx, line),
         .board => try handleBoard(ctx),
         .info => handleInfo(line),
+        .about => try writer.sendAbout(),
         .end => return false,
         .unknown => try writer.sendError("Unknown command"),
     }

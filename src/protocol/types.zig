@@ -6,6 +6,7 @@ pub const Command = enum {
     turn, // TURN [X],[Y] - Opponent played
     board, // BOARD - Load board position
     info, // INFO [key] [value] - Configuration
+    about, // ABOUT - Send brain information
     end, // END - Terminate program
     unknown, // self explanatory
 };
