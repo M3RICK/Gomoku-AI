@@ -99,20 +99,22 @@ pub const MoveGenerator = struct {
 
 fn calculateAdaptiveRadius(board: *const Board, base_radius: usize) usize {
     const move_count = board.move_count;
+    const board_area = board.size * board.size;
+    const density_percent = (move_count * 100) / board_area;
 
-    if (move_count <= 6) {
-        return 1;
+    if (density_percent < 5) {
+        return base_radius + 2;
     }
 
-    if (move_count <= 20) {
-        return base_radius;
-    }
-
-    if (move_count <= 40) {
+    if (density_percent < 15) {
         return base_radius + 1;
     }
 
-    return base_radius + 1;
+    if (density_percent < 30) {
+        return base_radius;
+    }
+
+    return base_radius;
 }
 
 fn hashPosition(x: usize, y: usize) u64 {
