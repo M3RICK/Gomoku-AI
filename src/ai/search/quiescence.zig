@@ -11,7 +11,7 @@ const Cell = board_mod.Cell;
 const Move = move_mod.Move;
 
 const MAX_QUIESCE_DEPTH = 4;
-const TACTICAL_THREAT_THRESHOLD = 48_000;
+const TACTICAL_THREAT_THRESHOLD = 25_000;
 
 pub fn search(
     board: *Board,

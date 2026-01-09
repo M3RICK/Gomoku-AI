@@ -19,7 +19,7 @@ const SCORE_WIN: i32 = 100_000;
 const SCORE_OPEN_FOUR: i32 = SCORE_WIN - 100;
 const SCORE_BLOCK_WIN: i32 = SCORE_WIN - 1;
 const SCORE_BLOCK_OPEN_FOUR: i32 = SCORE_WIN - 200;
-const DEPTH_LIMIT: i32 = 12;
+const DEPTH_LIMIT: i32 = 14;
 
 const SearchError = error{ OutOfMemory, TimeUp };
 
@@ -81,14 +81,67 @@ fn iterativeDeepening(board: *Board, ctx: SearchContext) !Move {
     return best;
 }
 
+fn narrowMovesIfCritical(board: *Board, all_moves: []Move, player: Cell, allocator: std.mem.Allocator) !?[]Move {
+    const opponent = board_mod.getOpponent(player);
+
+    for (all_moves) |m| {
+        if (threat.isWinningMove(board, m, opponent)) {
+            return try getCriticalMoves(board, all_moves, player, allocator);
+        }
+        if (threat.createsOpenFour(board, m, opponent)) {
+            return try getCriticalMoves(board, all_moves, player, allocator);
+        }
+    }
+
+    return null;
+}
+
+fn getCriticalMoves(board: *Board, all_moves: []Move, player: Cell, allocator: std.mem.Allocator) ![]Move {
+    var critical = std.ArrayList(Move){};
+    errdefer critical.deinit(allocator);
+
+    for (all_moves) |m| {
+        if (threat.isWinningMove(board, m, player)) {
+            try critical.append(allocator, m);
+            continue;
+        }
+        if (threat.isBlockingWin(board, m, player)) {
+            try critical.append(allocator, m);
+            continue;
+        }
+        if (threat.createsOpenFour(board, m, player)) {
+            try critical.append(allocator, m);
+            continue;
+        }
+        const opponent = board_mod.getOpponent(player);
+        if (threat.createsOpenFour(board, m, opponent)) {
+            try critical.append(allocator, m);
+        }
+    }
+
+    if (critical.items.len > 0) {
+        return try critical.toOwnedSlice(allocator);
+    }
+
+    critical.deinit(allocator);
+    return try allocator.dupe(Move, all_moves);
+}
+
 fn searchAtDepth(board: *Board, depth: i32, ctx: SearchContext) !SearchResult {
     var gen = movegen.MoveGenerator.init(ctx.allocator);
-    const moves = try gen.generateSmart(board, 2);
-    defer ctx.allocator.free(moves);
+    const all_moves = try gen.generateSmart(board, 2);
     defer gen.deinit();
 
-    if (moves.len == 0) {
+    if (all_moves.len == 0) {
+        ctx.allocator.free(all_moves);
         return error.NoMovesAvailable;
+    }
+
+    const critical_moves = try narrowMovesIfCritical(board, all_moves, ctx.player, ctx.allocator);
+    const moves = critical_moves orelse all_moves;
+    defer ctx.allocator.free(moves);
+    if (critical_moves != null) {
+        ctx.allocator.free(all_moves);
     }
 
     try move_ordering.orderMoves(board, moves, ctx.player, ctx.allocator);
