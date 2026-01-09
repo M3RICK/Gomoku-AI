@@ -120,9 +120,44 @@ fn scoreThreatPattern(info: pattern.LineInfo) i32 {
 
 pub fn detectFork(board: *Board, move: Move, player: Cell) bool {
     board_mod.makeMove(board, move.x, move.y, player);
-    const threats = countDangerousThreats(board, move.x, move.y);
+    const fork_info = countIndependentThreats(board, move.x, move.y);
     board_mod.undoMove(board, move.x, move.y);
-    return threats >= 2;
+    return fork_info.open_threes >= 2 or (fork_info.open_threes >= 1 and fork_info.open_fours >= 1);
+}
+
+const ThreatInfo = struct {
+    open_threes: usize,
+    open_fours: usize,
+};
+
+fn countIndependentThreats(board: *const Board, x: usize, y: usize) ThreatInfo {
+    var open_threes: usize = 0;
+    var open_fours: usize = 0;
+
+    const directions = [_]direction.Direction{
+        pattern.HORIZONTAL,
+        pattern.VERTICAL,
+        pattern.DIAGONAL,
+        pattern.ANTI_DIAGONAL,
+    };
+
+    for (directions) |dir| {
+        const player = board_mod.getCell(board, x, y);
+        const info = pattern.scanLine(board, x, y, dir, player);
+
+        if (info.count == 3 and info.open_left and info.open_right) {
+            open_threes += 1;
+        }
+
+        if (info.count == 4 and info.open_left and info.open_right) {
+            open_fours += 1;
+        }
+    }
+
+    return ThreatInfo{
+        .open_threes = open_threes,
+        .open_fours = open_fours,
+    };
 }
 
 fn countDangerousThreats(board: *const Board, x: usize, y: usize) usize {

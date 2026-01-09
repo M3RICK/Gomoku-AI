@@ -89,16 +89,12 @@ fn scoreMoveRegular(board: *Board, move: Move, player: Cell) i32 {
 fn scoreForkMoves(board: *Board, move: Move, player: Cell) i32 {
     var fork_score: i32 = 0;
 
-    const our_threats = threat.countAllThreats(board, move, player);
-    if (our_threats >= 2) {
+    if (threat.detectFork(board, move, player)) {
         fork_score += CREATE_FORK_SCORE;
-        const quality = threat.calculateThreatQuality(board, move, player);
-        fork_score += @divTrunc(quality, 10);
     }
 
     const opponent = board_mod.getOpponent(player);
-    const opp_threats = threat.countAllThreats(board, move, opponent);
-    if (opp_threats >= 2) {
+    if (threat.detectFork(board, move, opponent)) {
         fork_score += BLOCK_FORK_SCORE;
     }
 

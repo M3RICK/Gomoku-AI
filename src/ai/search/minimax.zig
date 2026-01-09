@@ -180,39 +180,51 @@ fn hasOpenThree(board: *const Board, x: usize, y: usize) bool {
 fn getCriticalMoves(board: *Board, all_moves: []Move, player: Cell, allocator: std.mem.Allocator) ![]Move {
     var critical = std.ArrayList(Move){};
     errdefer critical.deinit(allocator);
+    var non_critical = std.ArrayList(Move){};
+    errdefer non_critical.deinit(allocator);
 
     for (all_moves) |m| {
+        var is_critical = false;
+
         if (threat.isWinningMove(board, m, player)) {
             try critical.append(allocator, m);
-            continue;
-        }
-        if (threat.isBlockingWin(board, m, player)) {
+            is_critical = true;
+        } else if (threat.isBlockingWin(board, m, player)) {
             try critical.append(allocator, m);
-            continue;
-        }
-        if (threat.createsOpenFour(board, m, player)) {
+            is_critical = true;
+        } else if (threat.createsOpenFour(board, m, player)) {
             try critical.append(allocator, m);
-            continue;
+            is_critical = true;
+        } else {
+            const opponent = board_mod.getOpponent(player);
+            if (threat.createsOpenFour(board, m, opponent)) {
+                try critical.append(allocator, m);
+                is_critical = true;
+            } else if (createsOpenThree(board, m, player)) {
+                try critical.append(allocator, m);
+                is_critical = true;
+            } else if (createsOpenThree(board, m, opponent)) {
+                try critical.append(allocator, m);
+                is_critical = true;
+            }
         }
-        const opponent = board_mod.getOpponent(player);
-        if (threat.createsOpenFour(board, m, opponent)) {
-            try critical.append(allocator, m);
-            continue;
-        }
-        if (createsOpenThree(board, m, player)) {
-            try critical.append(allocator, m);
-            continue;
-        }
-        if (createsOpenThree(board, m, opponent)) {
-            try critical.append(allocator, m);
+
+        if (!is_critical) {
+            try non_critical.append(allocator, m);
         }
     }
 
     if (critical.items.len > 0) {
+        const keep_top = @min(non_critical.items.len, 3);
+        for (0..keep_top) |i| {
+            try critical.append(allocator, non_critical.items[i]);
+        }
+        non_critical.deinit(allocator);
         return try critical.toOwnedSlice(allocator);
     }
 
     critical.deinit(allocator);
+    non_critical.deinit(allocator);
     return try allocator.dupe(Move, all_moves);
 }
 
