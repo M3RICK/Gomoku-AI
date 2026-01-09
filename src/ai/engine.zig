@@ -2,6 +2,7 @@ const std = @import("std");
 const board_mod = @import("../game/board.zig");
 const move_mod = @import("../game/move.zig");
 const search = @import("search/minimax.zig");
+const hybrid = @import("mcts/hybrid.zig");
 const transposition = @import("optimization/transposition.zig");
 const Board = board_mod.Board;
 const Cell = board_mod.Cell;
@@ -30,7 +31,7 @@ pub const Engine = struct {
         time_limit_ms: u32,
         player: Cell,
     ) !Move {
-        return try search.findBestMove(
+        return try hybrid.findBestMove(
             board,
             time_limit_ms,
             &self.tt,
