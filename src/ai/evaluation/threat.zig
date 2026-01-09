@@ -60,10 +60,23 @@ pub fn scoreThreatCreation(board: *Board, move: Move, player: Cell) i32 {
 
 pub fn scoreThreatBlocking(board: *Board, move: Move, player: Cell) i32 {
     const opponent = board_mod.getOpponent(player);
+
     board_mod.makeMove(board, move.x, move.y, opponent);
-    const score = evaluateThreats(board, move.x, move.y);
+
+    const broken_threes = advanced.countBrokenThrees(board, move.x, move.y, opponent);
+    const broken_fours = advanced.countBrokenFours(board, move.x, move.y, opponent);
+    const broken_fives = advanced.countBrokenFives(board, move.x, move.y, opponent);
+    const threat_score = evaluateThreats(board, move.x, move.y);
+
     board_mod.undoMove(board, move.x, move.y);
-    return @divTrunc(score, 2);
+
+    var block_score: i32 = 0;
+    block_score += convertToScore(broken_threes, 60_000);
+    block_score += convertToScore(broken_fours, 85_000);
+    block_score += convertToScore(broken_fives, 95_000);
+    block_score += threat_score;
+
+    return block_score;
 }
 
 fn evaluateThreats(board: *const Board, x: usize, y: usize) i32 {
