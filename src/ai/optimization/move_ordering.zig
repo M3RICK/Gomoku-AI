@@ -2,13 +2,16 @@ const std = @import("std");
 const board_mod = @import("../../game/board.zig");
 const move_mod = @import("../../game/move.zig");
 const threat = @import("../evaluation/threat.zig");
+const minimax = @import("../search/minimax.zig");
 const Board = board_mod.Board;
 const Cell = board_mod.Cell;
 const Move = move_mod.Move;
+const HistoryTable = minimax.HistoryTable;
 
 const WIN_MOVE_SCORE: i32 = 9_800_000;
 const BLOCK_WIN_SCORE: i32 = 8_900_000;
 const KILLER_MOVE_SCORE: i32 = 8_700_000;
+const HISTORY_SCORE_BASE: i32 = 8_600_000;
 const CREATE_FORK_SCORE: i32 = 8_500_000;
 const BLOCK_FORK_SCORE: i32 = 8_400_000;
 const CENTER_BONUS_PER_UNIT: i32 = 95;
@@ -18,11 +21,15 @@ pub fn orderMoves(board: *Board, moves: []Move, player: Cell, allocator: std.mem
 }
 
 pub fn orderMovesWithKillers(board: *Board, moves: []Move, player: Cell, allocator: std.mem.Allocator, killers: ?[2]?Move, depth: i32) !void {
+    return orderMovesWithHistory(board, moves, player, allocator, killers, depth, null);
+}
+
+pub fn orderMovesWithHistory(board: *Board, moves: []Move, player: Cell, allocator: std.mem.Allocator, killers: ?[2]?Move, depth: i32, history: ?*const HistoryTable) !void {
     const move_scores = try allocator.alloc(i32, moves.len);
     defer allocator.free(move_scores);
 
     for (moves, 0..) |current_move, index| {
-        move_scores[index] = scoreMoveWithKillers(board, current_move, player, killers);
+        move_scores[index] = scoreMoveWithHistory(board, current_move, player, killers, history);
     }
 
     sortMovesByScore(moves, move_scores);
@@ -30,6 +37,10 @@ pub fn orderMovesWithKillers(board: *Board, moves: []Move, player: Cell, allocat
 }
 
 fn scoreMoveWithKillers(board: *Board, move: Move, player: Cell, killers: ?[2]?Move) i32 {
+    return scoreMoveWithHistory(board, move, player, killers, null);
+}
+
+fn scoreMoveWithHistory(board: *Board, move: Move, player: Cell, killers: ?[2]?Move, history: ?*const HistoryTable) i32 {
     var total_score: i32 = 0;
 
     if (threat.isWinningMove(board, move, player)) {
@@ -52,6 +63,14 @@ fn scoreMoveWithKillers(board: *Board, move: Move, player: Cell, killers: ?[2]?M
                     return KILLER_MOVE_SCORE + centerProximity(board, move);
                 }
             }
+        }
+    }
+
+    if (history) |history_table| {
+        const hist_score = history_table.get(move);
+        if (hist_score > 0) {
+            const scaled_score = @min(hist_score, 10000);
+            return HISTORY_SCORE_BASE + scaled_score + centerProximity(board, move);
         }
     }
 
