@@ -51,6 +51,71 @@ fn calculateSafeTimeout(timeout_turn: u32) u32 {
     return timeout_turn - safety_buffer_ms;
 }
 
+fn calculateSmartTimeout(ctx: *Context) u32 {
+    const has_match_time = ctx.time_left > 0 and ctx.timeout_match > 0;
+    if (!has_match_time) {
+        return calculateSafeTimeout(ctx.timeout_turn);
+    }
+
+    const emergency_threshold = getEndgameReserve() + getSafetyBuffer();
+    if (ctx.time_left <= emergency_threshold) {
+        return getEmergencyTimeout();
+    }
+
+    const usable_time = ctx.time_left - getEndgameReserve();
+    const estimated_moves = estimateMovesRemaining(ctx.move_count);
+    const base_time = usable_time / estimated_moves;
+
+    const capped_time = applyGamePhaseCap(base_time, ctx.move_count);
+    return applySafetyBuffer(capped_time);
+}
+
+fn getEndgameReserve() u32 {
+    return 15000;
+}
+
+fn getSafetyBuffer() u32 {
+    return 1000;
+}
+
+fn getEmergencyTimeout() u32 {
+    return 500;
+}
+
+fn estimateMovesRemaining(move_count: usize) u32 {
+    if (move_count < 20) {
+        return 40;
+    }
+
+    if (move_count < 40) {
+        return 20;
+    }
+
+    return 10;
+}
+
+fn applyGamePhaseCap(time_per_move: u32, move_count: usize) u32 {
+    if (move_count < 15) {
+        return @min(time_per_move, 2000);
+    }
+
+    if (move_count < 25) {
+        return @min(time_per_move, 3000);
+    }
+
+    return time_per_move;
+}
+
+fn applySafetyBuffer(time_per_move: u32) u32 {
+    const buffer = getSafetyBuffer();
+
+    if (time_per_move > buffer) {
+        return time_per_move - buffer;
+    }
+
+    return time_per_move / 2;
+}
+
 pub fn handleCommand(ctx: *Context, command: types.Command, line: []const u8) !bool {
     switch (command) {
         .start => try handleStart(ctx, line),
@@ -122,7 +187,7 @@ fn handleTurn(ctx: *Context, line: []const u8) !void {
 
     board_mod.makeMove(board, pos.x, pos.y, .opponent);
 
-    const safe_timeout = calculateSafeTimeout(ctx.timeout_turn);
+    const safe_timeout = calculateSmartTimeout(ctx);
     const my_move = try engine.findBestMove(board, safe_timeout, .me);
     board_mod.makeMove(board, my_move.x, my_move.y, .me);
 
@@ -140,7 +205,7 @@ fn handleBoard(ctx: *Context) !void {
     board_mod.clear(board);
     try loadBoardMoves(ctx, board);
 
-    const safe_timeout = calculateSafeTimeout(ctx.timeout_turn);
+    const safe_timeout = calculateSmartTimeout(ctx);
     const our_move = try engine.findBestMove(board, safe_timeout, .me);
     board_mod.makeMove(board, our_move.x, our_move.y, .me);
 
