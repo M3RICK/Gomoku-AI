@@ -448,7 +448,17 @@ fn searchMax(
         const reduction = getReductionAmount(move_index, depth);
         const search_depth = depth - reduction;
 
-        const score = try tryMoveAndEvaluate(board, m, ctx.player, search_depth, alpha, b, false, ctx);
+        var score: i32 = undefined;
+
+        if (move_index == 0) {
+            score = try tryMoveAndEvaluate(board, m, ctx.player, search_depth, alpha, b, false, ctx);
+        } else {
+            score = try tryMoveAndEvaluate(board, m, ctx.player, search_depth, alpha, alpha + 1, false, ctx);
+
+            if (score > alpha and score < b) {
+                score = try tryMoveAndEvaluate(board, m, ctx.player, search_depth, alpha, b, false, ctx);
+            }
+        }
 
         if (score > best_score) {
             best_score = score;
@@ -493,7 +503,17 @@ fn searchMin(
         const reduction = getReductionAmount(move_index, depth);
         const search_depth = depth - reduction;
 
-        const score = try tryMoveAndEvaluate(board, m, player, search_depth, a, beta, true, ctx);
+        var score: i32 = undefined;
+
+        if (move_index == 0) {
+            score = try tryMoveAndEvaluate(board, m, player, search_depth, a, beta, true, ctx);
+        } else {
+            score = try tryMoveAndEvaluate(board, m, player, search_depth, beta - 1, beta, true, ctx);
+
+            if (score > a and score < beta) {
+                score = try tryMoveAndEvaluate(board, m, player, search_depth, a, beta, true, ctx);
+            }
+        }
 
         if (score < best_score) {
             best_score = score;
