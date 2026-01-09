@@ -199,6 +199,21 @@ fn convertToScore(count: usize, multiplier: i32) i32 {
     return safe_count * multiplier;
 }
 
+pub fn countOpenThreesOnBoard(board: *const Board, player: Cell) usize {
+    var count: usize = 0;
+
+    for (0..board.size) |x| {
+        for (0..board.size) |y| {
+            if (board_mod.getCell(board, x, y) == player) {
+                const threats = countDangerousThreats(board, x, y);
+                count += threats;
+            }
+        }
+    }
+
+    return count / 3;
+}
+
 test "threat detection" {
     const allocator = std.testing.allocator;
     var board = try board_mod.init(allocator, 20);

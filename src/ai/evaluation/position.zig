@@ -2,6 +2,7 @@ const std = @import("std");
 const board_mod = @import("../../game/board.zig");
 const pattern = @import("pattern.zig");
 const direction = @import("../../game/direction.zig");
+const threat = @import("threat.zig");
 const Board = board_mod.Board;
 const Cell = board_mod.Cell;
 
@@ -93,10 +94,22 @@ pub fn evaluateForBothPlayers(board: *const Board) i32 {
     const my_score = evaluatePosition(board, .me);
     const opponent_score = evaluatePosition(board, .opponent);
 
+    var final_score = my_score;
+
+    const my_open_threes = threat.countOpenThreesOnBoard(board, .me);
+    if (my_open_threes >= 2) {
+        final_score += 900_000;
+    }
+
+    const opp_open_threes = threat.countOpenThreesOnBoard(board, .opponent);
+    if (opp_open_threes >= 2) {
+        final_score -= 900_000;
+    }
+
     const defense_weight = calculateDefenseWeight(opponent_score);
     const weighted_opponent = @divTrunc(opponent_score * defense_weight, 10);
 
-    return my_score - weighted_opponent;
+    return final_score - weighted_opponent;
 }
 
 fn calculateDefenseWeight(opponent_score: i32) i32 {
