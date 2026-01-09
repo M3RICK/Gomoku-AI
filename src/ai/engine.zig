@@ -1,9 +1,9 @@
 const std = @import("std");
 const board_mod = @import("../game/board.zig");
 const move_mod = @import("../game/move.zig");
-const search = @import("search/minimax.zig");
-const hybrid = @import("mcts/hybrid.zig");
+const minimax = @import("search/minimax.zig");
 const transposition = @import("optimization/transposition.zig");
+const opening_book = @import("opening_book.zig");
 const Board = board_mod.Board;
 const Cell = board_mod.Cell;
 const Move = move_mod.Move;
@@ -31,7 +31,11 @@ pub const Engine = struct {
         time_limit_ms: u32,
         player: Cell,
     ) !Move {
-        return try hybrid.findBestMove(
+        if (opening_book.tryOpeningBook(board)) |book_move| {
+            return book_move;
+        }
+
+        return try minimax.findBestMove(
             board,
             time_limit_ms,
             &self.tt,
