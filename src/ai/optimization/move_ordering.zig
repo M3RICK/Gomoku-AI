@@ -8,22 +8,28 @@ const Move = move_mod.Move;
 
 const WIN_MOVE_SCORE: i32 = 9_800_000;
 const BLOCK_WIN_SCORE: i32 = 8_900_000;
+const KILLER_MOVE_SCORE: i32 = 8_700_000;
 const CREATE_FORK_SCORE: i32 = 8_500_000;
 const BLOCK_FORK_SCORE: i32 = 8_400_000;
 const CENTER_BONUS_PER_UNIT: i32 = 95;
 
 pub fn orderMoves(board: *Board, moves: []Move, player: Cell, allocator: std.mem.Allocator) !void {
+    return orderMovesWithKillers(board, moves, player, allocator, null, 0);
+}
+
+pub fn orderMovesWithKillers(board: *Board, moves: []Move, player: Cell, allocator: std.mem.Allocator, killers: ?[2]?Move, depth: i32) !void {
     const move_scores = try allocator.alloc(i32, moves.len);
     defer allocator.free(move_scores);
 
     for (moves, 0..) |current_move, index| {
-        move_scores[index] = scoreMove(board, current_move, player);
+        move_scores[index] = scoreMoveWithKillers(board, current_move, player, killers);
     }
 
     sortMovesByScore(moves, move_scores);
+    _ = depth;
 }
 
-pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
+fn scoreMoveWithKillers(board: *Board, move: Move, player: Cell, killers: ?[2]?Move) i32 {
     var total_score: i32 = 0;
 
     if (threat.isWinningMove(board, move, player)) {
@@ -38,6 +44,26 @@ pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
         total_score += centerProximity(board, move);
         return total_score;
     }
+
+    if (killers) |killer_moves| {
+        for (killer_moves) |maybe_killer| {
+            if (maybe_killer) |killer| {
+                if (killer.x == move.x and killer.y == move.y) {
+                    return KILLER_MOVE_SCORE + centerProximity(board, move);
+                }
+            }
+        }
+    }
+
+    return scoreMoveRegular(board, move, player);
+}
+
+pub fn scoreMove(board: *Board, move: Move, player: Cell) i32 {
+    return scoreMoveWithKillers(board, move, player, null);
+}
+
+fn scoreMoveRegular(board: *Board, move: Move, player: Cell) i32 {
+    var total_score: i32 = 0;
 
     if (threat.createsSemiOpenFour(board, move, player)) {
         total_score = CREATE_FORK_SCORE + 100_000;
