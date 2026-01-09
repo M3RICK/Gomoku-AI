@@ -1,7 +1,7 @@
 const std = @import("std");
 
-pub const BUFFER_MS: u32 = 200;
-pub const MIN_RESERVE_MS: i64 = 300;
+pub const BUFFER_MS: u32 = 150;
+pub const MIN_RESERVE_MS: i64 = 200;
 
 var clock: std.time.Timer = undefined;
 var clock_ready: bool = false;
@@ -45,16 +45,15 @@ fn getRemainingTime(deadline: i64) i64 {
 
 fn estimateTimeForNextDepth(d: i32) i64 {
     const base: i64 = 10;
-    const growth: i64 = 3;
-    var cost: i64 = base;
+    var cost: f64 = @floatFromInt(base);
 
     var i: i32 = 0;
     while (i < d and i < 10) : (i += 1) {
-        cost *= growth;
-        if (cost > 10_000) break;
+        cost *= 2.5;
+        if (cost > 10_000.0) break;
     }
 
-    return cost;
+    return @intFromFloat(cost);
 }
 
 // Tests

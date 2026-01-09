@@ -392,7 +392,7 @@ fn minimaxMin(board: *Board, depth: i32, a: i32, b: i32, ctx: SearchContext) !i3
 
 fn shouldTryNullMove(depth: i32, move_count: usize, maximizing: bool) bool {
     if (maximizing) return false;
-    if (depth < 3) return false;
+    if (depth < 2) return false;
     if (move_count <= 4) return false;
     return true;
 }
@@ -404,7 +404,7 @@ fn tryNullMovePruning(
     beta: i32,
     ctx: SearchContext,
 ) !?i32 {
-    const reduction: i32 = 2;
+    const reduction: i32 = if (depth >= 6) 3 else 2;
     const reduced_depth = depth - 1 - reduction;
 
     const null_score = try minimax(board, reduced_depth, alpha, beta, true, ctx);
@@ -445,11 +445,8 @@ fn searchMax(
     var alpha = a;
 
     for (moves, 0..) |m, move_index| {
-        var search_depth = depth;
-
-        if (shouldReduceMove(move_index, depth)) {
-            search_depth = depth - 1;
-        }
+        const reduction = getReductionAmount(move_index, depth);
+        const search_depth = depth - reduction;
 
         const score = try tryMoveAndEvaluate(board, m, ctx.player, search_depth, alpha, b, false, ctx);
 
@@ -493,11 +490,8 @@ fn searchMin(
     var beta = b;
 
     for (moves, 0..) |m, move_index| {
-        var search_depth = depth;
-
-        if (shouldReduceMove(move_index, depth)) {
-            search_depth = depth - 1;
-        }
+        const reduction = getReductionAmount(move_index, depth);
+        const search_depth = depth - reduction;
 
         const score = try tryMoveAndEvaluate(board, m, player, search_depth, a, beta, true, ctx);
 
@@ -557,7 +551,7 @@ fn getFallbackMove(board: *const Board, allocator: std.mem.Allocator) !Move {
 }
 
 fn shouldReduceMove(move_index: usize, depth: i32) bool {
-    if (depth < 3) {
+    if (depth < 2) {
         return false;
     }
 
@@ -566,6 +560,22 @@ fn shouldReduceMove(move_index: usize, depth: i32) bool {
     }
 
     return true;
+}
+
+fn getReductionAmount(move_index: usize, depth: i32) i32 {
+    if (depth < 2) {
+        return 0;
+    }
+
+    if (move_index < 4) {
+        return 0;
+    }
+
+    if (move_index >= 8) {
+        return 2;
+    }
+
+    return 1;
 }
 
 fn checkTerminalState(board: *const Board) bool {
