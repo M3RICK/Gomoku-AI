@@ -155,19 +155,19 @@ fn searchAtDepth(board: *Board, depth: i32, ctx: SearchContext) !SearchResult {
         return result;
     }
 
-    const open_four_move = checkForOpenFour(board, moves, ctx.player);
-    if (open_four_move) |move| {
-        var result: SearchResult = undefined;
-        result.move = move;
-        result.score = SCORE_OPEN_FOUR;
-        return result;
-    }
-
     const block_win_move = checkForImmediateWin(board, moves, opponent);
     if (block_win_move) |move| {
         var result: SearchResult = undefined;
         result.move = move;
         result.score = SCORE_BLOCK_WIN;
+        return result;
+    }
+
+    const open_four_move = checkForOpenFour(board, moves, ctx.player);
+    if (open_four_move) |move| {
+        var result: SearchResult = undefined;
+        result.move = move;
+        result.score = SCORE_OPEN_FOUR;
         return result;
     }
 
