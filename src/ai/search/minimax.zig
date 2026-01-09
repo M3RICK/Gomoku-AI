@@ -25,12 +25,60 @@ const DEPTH_LIMIT: i32 = 14;
 
 const SearchError = error{ OutOfMemory, TimeUp };
 
+const MAX_KILLER_SLOTS = 2;
+
+pub const KillerMoves = struct {
+    moves: [DEPTH_LIMIT][MAX_KILLER_SLOTS]?Move,
+
+    pub fn init() KillerMoves {
+        var killers = KillerMoves{
+            .moves = undefined,
+        };
+
+        for (0..DEPTH_LIMIT) |depth| {
+            for (0..MAX_KILLER_SLOTS) |slot| {
+                killers.moves[depth][slot] = null;
+            }
+        }
+
+        return killers;
+    }
+
+    pub fn store(self: *KillerMoves, move: Move, depth: i32) void {
+        if (depth < 0 or depth >= DEPTH_LIMIT) {
+            return;
+        }
+
+        const depth_index: usize = @intCast(depth);
+
+        const first_killer = self.moves[depth_index][0];
+        if (first_killer) |existing_move| {
+            if (existing_move.x == move.x and existing_move.y == move.y) {
+                return;
+            }
+        }
+
+        self.moves[depth_index][1] = self.moves[depth_index][0];
+        self.moves[depth_index][0] = move;
+    }
+
+    pub fn get(self: *const KillerMoves, depth: i32) [MAX_KILLER_SLOTS]?Move {
+        if (depth < 0 or depth >= DEPTH_LIMIT) {
+            return [_]?Move{ null, null };
+        }
+
+        const depth_index: usize = @intCast(depth);
+        return self.moves[depth_index];
+    }
+};
+
 pub const SearchContext = struct {
     deadline: i64,
     tt: *transposition.TranspositionTable,
     player: Cell,
     allocator: std.mem.Allocator,
     hash: u64,
+    killers: *KillerMoves,
 };
 
 pub const SearchResult = struct {
@@ -47,12 +95,16 @@ pub fn findBestMove(
 ) !Move {
     const deadline = timer.getDeadline(time_limit_ms);
     const hash = transposition.computeHash(board);
+
+    var killers = KillerMoves.init();
+
     const ctx = SearchContext{
         .deadline = deadline,
         .tt = tt,
         .player = player,
         .allocator = allocator,
         .hash = hash,
+        .killers = &killers,
     };
     return try iterativeDeepening(board, ctx);
 }
@@ -373,7 +425,8 @@ fn searchMax(
         return SearchResult2{ .move = Move.init(0, 0), .score = 0 };
     }
 
-    try move_ordering.orderMoves(board, moves, ctx.player, ctx.allocator);
+    const killers = ctx.killers.get(depth);
+    try move_ordering.orderMovesWithKillers(board, moves, ctx.player, ctx.allocator, killers, depth);
 
     var best_move = moves[0];
     var best_score = SCORE_MIN;
@@ -395,6 +448,7 @@ fn searchMax(
 
         alpha = @max(alpha, score);
         if (b <= alpha) {
+            ctx.killers.store(m, depth);
             break;
         }
     }
@@ -419,7 +473,8 @@ fn searchMin(
         return SearchResult2{ .move = Move.init(0, 0), .score = 0 };
     }
 
-    try move_ordering.orderMoves(board, moves, player, ctx.allocator);
+    const killers = ctx.killers.get(depth);
+    try move_ordering.orderMovesWithKillers(board, moves, player, ctx.allocator, killers, depth);
 
     var best_move = moves[0];
     var best_score = SCORE_MAX;
@@ -441,6 +496,7 @@ fn searchMin(
 
         beta = @min(beta, score);
         if (beta <= a) {
+            ctx.killers.store(m, depth);
             break;
         }
     }
