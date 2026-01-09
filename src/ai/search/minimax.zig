@@ -9,6 +9,8 @@ const move_ordering = @import("../optimization/move_ordering.zig");
 const transposition = @import("../optimization/transposition.zig");
 const quiescence = @import("quiescence.zig");
 const threat = @import("../evaluation/threat.zig");
+const pattern = @import("../evaluation/pattern.zig");
+const direction = @import("../../game/direction.zig");
 const Board = board_mod.Board;
 const Cell = board_mod.Cell;
 const Move = move_mod.Move;
@@ -91,9 +93,36 @@ fn narrowMovesIfCritical(board: *Board, all_moves: []Move, player: Cell, allocat
         if (threat.createsOpenFour(board, m, opponent)) {
             return try getCriticalMoves(board, all_moves, player, allocator);
         }
+        if (createsOpenThree(board, m, opponent)) {
+            return try getCriticalMoves(board, all_moves, player, allocator);
+        }
     }
 
     return null;
+}
+
+fn createsOpenThree(board: *Board, move: Move, player: Cell) bool {
+    board_mod.makeMove(board, move.x, move.y, player);
+    const has_open_three = hasOpenThree(board, move.x, move.y);
+    board_mod.undoMove(board, move.x, move.y);
+    return has_open_three;
+}
+
+fn hasOpenThree(board: *const Board, x: usize, y: usize) bool {
+    const directions = [_]direction.Direction{
+        pattern.HORIZONTAL,
+        pattern.VERTICAL,
+        pattern.DIAGONAL,
+        pattern.ANTI_DIAGONAL,
+    };
+    const player = board_mod.getCell(board, x, y);
+    for (directions) |d| {
+        const info = pattern.scanLine(board, x, y, d, player);
+        if (info.count == 3 and info.open_left and info.open_right) {
+            return true;
+        }
+    }
+    return false;
 }
 
 fn getCriticalMoves(board: *Board, all_moves: []Move, player: Cell, allocator: std.mem.Allocator) ![]Move {
@@ -115,6 +144,14 @@ fn getCriticalMoves(board: *Board, all_moves: []Move, player: Cell, allocator: s
         }
         const opponent = board_mod.getOpponent(player);
         if (threat.createsOpenFour(board, m, opponent)) {
+            try critical.append(allocator, m);
+            continue;
+        }
+        if (createsOpenThree(board, m, player)) {
+            try critical.append(allocator, m);
+            continue;
+        }
+        if (createsOpenThree(board, m, opponent)) {
             try critical.append(allocator, m);
         }
     }
