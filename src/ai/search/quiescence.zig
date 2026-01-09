@@ -45,11 +45,11 @@ fn searchTacticalMoves(
     remaining_depth: i32,
 ) error{ OutOfMemory, TimeUp }!i32 {
     if (shouldStopSearch(deadline, remaining_depth)) {
-        const static_score = getStaticEvaluation(board);
+        const static_score = getStaticEvaluation(board, player);
         return static_score;
     }
 
-    const current_eval = getStaticEvaluation(board);
+    const current_eval = getStaticEvaluation(board, player);
 
     if (canPruneBeta(current_eval, beta_bound)) {
         return beta_bound;
@@ -70,8 +70,14 @@ fn searchTacticalMoves(
     return final_score;
 }
 
-fn getStaticEvaluation(board: *const Board) i32 {
-    return evaluate.evaluateForBothPlayers(board);
+fn getStaticEvaluation(board: *const Board, player: Cell) i32 {
+    const ai_perspective_score = evaluate.evaluateForBothPlayers(board);
+
+    if (player == .me) {
+        return ai_perspective_score;
+    } else {
+        return -ai_perspective_score;
+    }
 }
 
 fn canPruneBeta(score: i32, beta: i32) bool {
