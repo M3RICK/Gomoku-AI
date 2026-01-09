@@ -7,6 +7,7 @@ const errors = @import("errors.zig");
 const move_mod = @import("../game/move.zig");
 const board_mod = @import("../game/board.zig");
 const engine_mod = @import("../ai/engine.zig");
+const threat = @import("../ai/evaluation/threat.zig");
 const Move = move_mod.Move;
 const Board = board_mod.Board;
 const Engine = engine_mod.Engine;
@@ -51,7 +52,7 @@ fn calculateSafeTimeout(timeout_turn: u32) u32 {
     return timeout_turn - safety_buffer_ms;
 }
 
-fn calculateSmartTimeout(ctx: *Context) u32 {
+fn calculateSmartTimeout(ctx: *Context, board: *const Board) u32 {
     const has_match_time = ctx.time_left > 0 and ctx.timeout_match > 0;
     if (!has_match_time) {
         return calculateSafeTimeout(ctx.timeout_turn);
@@ -64,10 +65,31 @@ fn calculateSmartTimeout(ctx: *Context) u32 {
 
     const usable_time = ctx.time_left - getEndgameReserve();
     const estimated_moves = estimateMovesRemaining(ctx.move_count);
-    const base_time = usable_time / estimated_moves;
+    var base_time = usable_time / estimated_moves;
+
+    base_time = adjustForThreats(board, base_time, ctx.move_count);
 
     const capped_time = applyGamePhaseCap(base_time, ctx.move_count);
     return applySafetyBuffer(capped_time);
+}
+
+fn adjustForThreats(board: *const Board, base_time: u32, move_count: usize) u32 {
+    const my_threats = threat.countOpenThreesOnBoard(board, .me);
+    const opp_threats = threat.countOpenThreesOnBoard(board, .opponent);
+
+    if (opp_threats >= 2 or my_threats >= 2) {
+        return @min(base_time * 2, 5000);
+    }
+
+    if (opp_threats >= 1 or my_threats >= 1) {
+        return @min(base_time * 3 / 2, 4000);
+    }
+
+    if (move_count < 10) {
+        return base_time / 2;
+    }
+
+    return base_time;
 }
 
 fn getEndgameReserve() u32 {
@@ -187,7 +209,7 @@ fn handleTurn(ctx: *Context, line: []const u8) !void {
 
     board_mod.makeMove(board, pos.x, pos.y, .opponent);
 
-    const safe_timeout = calculateSmartTimeout(ctx);
+    const safe_timeout = calculateSmartTimeout(ctx, board);
     const my_move = try engine.findBestMove(board, safe_timeout, .me);
     board_mod.makeMove(board, my_move.x, my_move.y, .me);
 
@@ -205,7 +227,7 @@ fn handleBoard(ctx: *Context) !void {
     board_mod.clear(board);
     try loadBoardMoves(ctx, board);
 
-    const safe_timeout = calculateSmartTimeout(ctx);
+    const safe_timeout = calculateSmartTimeout(ctx, board);
     const our_move = try engine.findBestMove(board, safe_timeout, .me);
     board_mod.makeMove(board, our_move.x, our_move.y, .me);
 
