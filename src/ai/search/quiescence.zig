@@ -213,7 +213,7 @@ fn generateCandidateMoves(board: *const Board, allocator: std.mem.Allocator) ![]
     var gen = movegen.MoveGenerator.init(allocator);
     defer gen.deinit();
 
-    return try gen.generateSmart(board, 2);
+    return try gen.generateSmart(board, 3);
 }
 
 fn filterTacticalMoves(

@@ -230,7 +230,7 @@ fn getCriticalMoves(board: *Board, all_moves: []Move, player: Cell, allocator: s
 
 fn searchAtDepth(board: *Board, depth: i32, ctx: SearchContext) !SearchResult {
     var gen = movegen.MoveGenerator.init(ctx.allocator);
-    const all_moves = try gen.generateSmart(board, 2);
+    const all_moves = try gen.generateSmart(board, 3);
     defer gen.deinit();
 
     if (all_moves.len == 0) {
@@ -429,7 +429,7 @@ fn searchMax(
     ctx: SearchContext,
 ) !SearchResult2 {
     var gen = movegen.MoveGenerator.init(ctx.allocator);
-    const moves = try gen.generateSmart(board, 2);
+    const moves = try gen.generateSmart(board, 3);
     defer ctx.allocator.free(moves);
     defer gen.deinit();
 
@@ -474,7 +474,7 @@ fn searchMin(
     player: Cell,
 ) !SearchResult2 {
     var gen = movegen.MoveGenerator.init(ctx.allocator);
-    const moves = try gen.generateSmart(board, 2);
+    const moves = try gen.generateSmart(board, 3);
     defer ctx.allocator.free(moves);
     defer gen.deinit();
 
@@ -541,7 +541,7 @@ fn saveToCache(ctx: SearchContext, best_move: Move, score: i32, depth: i32, orig
 
 fn getFallbackMove(board: *const Board, allocator: std.mem.Allocator) !Move {
     var gen = movegen.MoveGenerator.init(allocator);
-    const moves = try gen.generateSmart(board, 2);
+    const moves = try gen.generateSmart(board, 3);
 
     const move = if (moves.len > 0) moves[0] else Move.init(board.size / 2, board.size / 2);
 
