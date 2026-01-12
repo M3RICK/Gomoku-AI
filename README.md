@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/M3RICK/Gomoku-AI/blob/main/Docs/image-removebg-preview.png" width="400" alt="Banner">
+  <img src="https://github.com/M3RICK/Gomoku-AI/blob/main/Docs/MAKORA.webp" width="400" alt="Banner">
   <br><br>
 </div>
 
