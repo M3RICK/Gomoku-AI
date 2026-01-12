@@ -1,3 +1,8 @@
+<div align="center">
+  <img src="https://github.com/M3RICK/Gomoku-AI/blob/main/Docs/image-removebg-preview.png" width="400" alt="Banner">
+  <br><br>
+</div>
+
 # Gomoku AI Engine
 
 A high-performance Gomoku (Five in a Row) AI engine written in Zig, implementing advanced game tree search algorithms and strategic evaluation techniques.
@@ -273,4 +278,4 @@ This project was developed as part of the EPITECH curriculum.
 
 ---
 
-Built with Zig 🚀
+Built with Zig 0.16
